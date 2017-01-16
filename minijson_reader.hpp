@@ -19,17 +19,13 @@
 #define MJR_CPP11_SUPPORTED __cplusplus > 199711L || _MSC_VER >= 1800
 
 #if MJR_CPP11_SUPPORTED
-
-#define MJR_FINAL final
-
+    #define MJR_FINAL final
 #else
-
-#define MJR_FINAL
-
+    #define MJR_FINAL
 #endif // MJR_CPP11_SUPPORTED
 
 #ifndef MJR_NESTING_LIMIT
-#define MJR_NESTING_LIMIT 32
+    #define MJR_NESTING_LIMIT 32
 #endif
 
 #define MJR_STRINGIFY(S) MJR_STRINGIFY_HELPER(S)
@@ -187,7 +183,8 @@ class const_buffer_context MJR_FINAL : public detail::buffer_context_base
 public:
 
     explicit const_buffer_context(const char* buffer, size_t length) :
-        detail::buffer_context_base(buffer, new char[length], length) // don't worry about leaks, buffer_context_base can't throw
+        detail::buffer_context_base(buffer, new char[length], length)
+        //NOTE: don't worry about leaks, buffer_context_base can't throw
     {
     }
 
@@ -217,7 +214,6 @@ public:
     char read()
     {
         const char c = m_stream.get();
-
         if (m_stream)
         {
             m_read_offset++;
@@ -416,27 +412,27 @@ inline utf8_char utf32_to_utf8(uint32_t utf32_char)
 {
     utf8_char result;
 
-    if      (utf32_char <= 0x00007F)
+    if (utf32_char <= 0x00007F)
     {
         result[0] = utf32_char;
     }
     else if (utf32_char <= 0x0007FF)
     {
         result[0] = 0xC0 | ((utf32_char & (0x1F <<  6)) >>  6);
-        result[1] = 0x80 | ((utf32_char & (0x3F      ))      );
+        result[1] = 0x80 | ((utf32_char & (0x3F)));
     }
     else if (utf32_char <= 0x00FFFF)
     {
         result[0] = 0xE0 | ((utf32_char & (0x0F << 12)) >> 12);
         result[1] = 0x80 | ((utf32_char & (0x3F <<  6)) >>  6);
-        result[2] = 0x80 | ((utf32_char & (0x3F      ))      );
+        result[2] = 0x80 | ((utf32_char & (0x3F)));
     }
     else if (utf32_char <= 0x1FFFFF)
     {
         result[0] = 0xF0 | ((utf32_char & (0x07 << 18)) >> 18);
         result[1] = 0x80 | ((utf32_char & (0x3F << 12)) >> 12);
         result[2] = 0x80 | ((utf32_char & (0x3F <<  6)) >>  6);
-        result[3] = 0x80 | ((utf32_char & (0x3F      ))      );
+        result[3] = 0x80 | ((utf32_char & (0x3F)));
     }
     else
     {
@@ -459,7 +455,8 @@ struct number_parse_error
 
 inline long parse_long(const char* str, int base = 10)
 {
-    if ((str == NULL) || (*str == 0) || isspace(str[0])) // we don't accept empty strings or strings with leading spaces
+    // we don't accept empty strings or strings with leading spaces
+    if ((str == NULL) || (*str == 0) || isspace(str[0]))
     {
         throw number_parse_error();
     }
@@ -477,6 +474,34 @@ inline long parse_long(const char* str, int base = 10)
         throw number_parse_error();
     }
     else if ((saved_errno == ERANGE) && ((result == LONG_MIN) || (result == LONG_MAX))) // overflow
+    {
+        throw number_parse_error();
+    }
+
+    return result;
+}
+
+inline long long parse_longlong(const char* str, int base = 10)
+{
+    // we don't accept empty strings or strings with leading spaces
+    if ((str == NULL) || (*str == 0) || isspace(str[0]))
+    {
+        throw number_parse_error();
+    }
+
+    int saved_errno = errno; // save errno
+    errno = 0; // reset errno
+
+    char* endptr;
+    const long result = std::strtoll(str, &endptr, base);
+
+    std::swap(saved_errno, errno); // restore errno
+
+    if (*endptr != 0) // we didn't consume the whole string
+    {
+        throw number_parse_error();
+    }
+    else if ((saved_errno == ERANGE) && ((result == LLONG_MIN) || (result == LLONG_MAX))) // overflow
     {
         throw number_parse_error();
     }
@@ -692,7 +717,8 @@ char read_unquoted_value(Context& context, char first_char = 0)
 
     char c;
 
-    while (((c = context.read()) != 0) && (c != ',') && (c != '}') && (c != ']') && !isspace(c))
+    while (((c = context.read()) != 0) && (c != ',') &&
+            (c != '}') && (c != ']') && !isspace(c))
     {
         context.write(c);
     }
@@ -725,12 +751,13 @@ private:
 
     value_type m_type;
     const char* m_buffer;
-    long m_long_value;
+    long long m_long_value;
     double m_double_value;
 
 public:
 
-    explicit value(value_type type = Null, const char* buffer = "", long long_value = 0, double double_value = 0.0) :
+    explicit value(value_type type = Null, const char* buffer = "",
+                   long long long_value = 0, double double_value = 0.0) :
         m_type(type),
         m_buffer(buffer),
         m_long_value(long_value),
@@ -749,6 +776,11 @@ public:
     }
 
     long as_long() const
+    {
+        return static_cast<long>(m_long_value);
+    }
+
+    long as_longlong() const
     {
         return m_long_value;
     }
@@ -786,12 +818,12 @@ value parse_unquoted_value(const Context& context)
     }
     else
     {
-        long long_value = 0;
+        long long long_value = 0;
         double double_value = 0.0;
 
         try
         {
-            long_value = parse_long(buffer);
+            long_value = parse_longlong(buffer);
             double_value = long_value;
         }
         catch (const number_parse_error&)
@@ -945,7 +977,7 @@ void parse_object(Context& context, Handler handler)
                 state = END;
                 break;
             }
-            // intentional fall-through
+        // intentional fall-through
 
         case FIELD_NAME:
             if (c != '"')
@@ -1059,7 +1091,7 @@ void parse_array(Context& context, Handler handler)
                 state = END;
                 break;
             }
-            // intentional fall-through
+        // intentional fall-through
 
         case VALUE:
             handler(parse_value_helper(context, c, must_read));
@@ -1150,7 +1182,8 @@ public:
     template<typename Handler>
     dispatch& operator>>(Handler handler) const
     {
-        if (!m_dispatch.m_handled && ((m_field_name == NULL) || (strcmp(m_dispatch.m_field_name, m_field_name) == 0)))
+        if (!m_dispatch.m_handled && ((m_field_name == NULL) ||
+                                      (strcmp(m_dispatch.m_field_name, m_field_name) == 0)))
         {
             handler();
             m_dispatch.m_handled = true;
@@ -1172,12 +1205,12 @@ public:
     {
     }
 
-    void operator()(const char*, value)
+    void operator()(const char*, value) const
     {
         operator()();
     }
 
-    void operator()(value)
+    void operator()(value) const
     {
         operator()();
     }
