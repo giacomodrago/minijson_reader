@@ -349,14 +349,20 @@ TEST(minijson_reader_detail, parse_double)
     ASSERT_DOUBLE_EQ(42.42E-01, minijson::detail::parse_double("42.42E-01"));
 
     char buf[2048];
-
     sprintf(buf, "%lf", std::numeric_limits<double>::max());
+
+    std::string str(std::to_string(std::numeric_limits<double>::max()));
+    //TODO 1.79769e+308 != 179769313486231610000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.000000
+    std::cout << std::numeric_limits<double>::max() << " == " << str << std::endl;
     ASSERT_DOUBLE_EQ(std::numeric_limits<double>::max(), minijson::detail::parse_double(buf));
 
     sprintf(buf, "%lf", -std::numeric_limits<double>::max());
+    str = std::to_string(std::numeric_limits<double>::min());
+    //TODO 2.22507e-308 != 0.000000
+    std::cout << std::numeric_limits<double>::min() << " == " << str << std::endl;
     ASSERT_DOUBLE_EQ(-std::numeric_limits<double>::max(), minijson::detail::parse_double(buf));
 
-#if 0 // for some reason I have to determine, the following two tests fail
+#if 0 //TODO for some reason I have to determine, the following two tests fail
     sprintf(buf, "%lf", std::numeric_limits<double>::min());
     ASSERT_DOUBLE_EQ(std::numeric_limits<double>::min(), minijson::detail::parse_double(buf));
 
@@ -1705,5 +1711,6 @@ TEST(minijson_dispatch, parse_object)
 int main(int argc, char** argv)
 {
     testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    int result = RUN_ALL_TESTS();
+    return result;
 }

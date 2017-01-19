@@ -76,7 +76,7 @@ public:
     {
     }
 
-    char nested_status() const
+    context_nested_status nested_status() const
     {
         return m_nested_status;
     }
@@ -213,7 +213,7 @@ public:
 
     char read()
     {
-        const char c = m_stream.get();
+        const char c = static_cast<const char>(m_stream.get());
         if (m_stream)
         {
             m_read_offset++;
@@ -493,7 +493,7 @@ inline long long parse_longlong(const char* str, int base = 10)
     errno = 0; // reset errno
 
     char* endptr;
-    const long result = std::strtoll(str, &endptr, base);
+    const long long result = std::strtoll(str, &endptr, base);
 
     std::swap(saved_errno, errno); // restore errno
 
@@ -780,7 +780,7 @@ public:
         return static_cast<long>(m_long_value);
     }
 
-    long as_longlong() const
+    long long as_longlong() const
     {
         return m_long_value;
     }
@@ -824,7 +824,7 @@ value parse_unquoted_value(const Context& context)
         try
         {
             long_value = parse_longlong(buffer);
-            double_value = long_value;
+            double_value = static_cast<double>(long_value);
         }
         catch (const number_parse_error&)
         {

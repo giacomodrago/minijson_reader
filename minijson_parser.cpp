@@ -110,7 +110,11 @@ struct parse_array_nested_handler
             write_quoted_string(std::cout, v.as_string(), "\n");
         }
         else if (minijson::Boolean == v.type()) { std::cout << "\t" << std::boolalpha << v.as_bool() << std::endl; }
-        else { throw std::runtime_error("unexpeced type at parse_array_nested_handler()");  }
+        else
+        {
+            throw minijson::parse_error(context, minijson::parse_error::INVALID_VALUE);
+            //XXX throw std::runtime_error("unexpeced type at parse_array_nested_handler()");
+        }
 
         ++counter;
     }
@@ -151,7 +155,11 @@ struct parse_object_nested_handler
             write_quoted_string(std::cout, v.as_string(), "\n");
         }
         else if (minijson::Boolean == v.type()) { std::cout << "\t\"" << name << "\" : " << std::boolalpha << v.as_bool() << std::endl; }
-        else { throw std::runtime_error("unexpeced type at parse_object_nested_handler()");  }
+        else
+        {
+            //XXX throw minijson::parse_error(context, minijson::parse_error::INVALID_VALUE);
+            throw std::runtime_error("unexpeced type at parse_object_nested_handler()");
+        }
 
         ++counter;
     }
@@ -184,7 +192,7 @@ int main()
 
 /***
 
-$ cat simpleproperty.json | ./minijson_parser | /cygdrive/f/python/json_pp.py
+$ cat simpleproperty.json | ./minijson_parser | json_pp.py
 {
    "name": "property",
    "type": "float",
@@ -192,7 +200,7 @@ $ cat simpleproperty.json | ./minijson_parser | /cygdrive/f/python/json_pp.py
 }
 
 
-$ cat simplesequence.json | ./minijson_parser | /cygdrive/f/python/json_pp.py
+$ cat simplesequence.json | ./minijson_parser | json_pp.py
 {
    "name": "list",
    "type": "boolsequence",
@@ -205,7 +213,7 @@ $ cat simplesequence.json | ./minijson_parser | /cygdrive/f/python/json_pp.py
 }
 
 
-$ cat structproperty.json | ./minijson_parser | /cygdrive/f/python/json_pp.py
+$ cat structproperty.json | ./minijson_parser | json_pp.py
 {
    "name": "structproperty",
    "type": "struct",
@@ -224,7 +232,7 @@ $ cat structproperty.json | ./minijson_parser | /cygdrive/f/python/json_pp.py
 }
 
 
-$ cat structsequence.json | ./minijson_parser | /cygdrive/f/python/json_pp.py
+$ cat structsequence.json | ./minijson_parser | json_pp.py
 {
    "name": "structSequenceProperty",
    "type": "structsequence",
