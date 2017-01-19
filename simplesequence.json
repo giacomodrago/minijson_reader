@@ -1,0 +1,10 @@
+{
+   "name": "list",
+   "type": "boolsequence",
+   "value": [
+      true,
+      false,
+      false,
+      true
+   ]
+}

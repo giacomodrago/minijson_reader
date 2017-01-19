@@ -1,0 +1,40 @@
+{
+   "name": "structSequenceProperty",
+   "type": "structsequence",
+   "value": [
+      [
+         {
+            "name": "entry1",
+            "type": "bool",
+            "value": true
+         },
+         {
+            "name": "entry2",
+            "type": "long",
+            "value": "42"
+         },
+         {
+            "name": "entry3",
+            "type": "string",
+            "value": "\tUnicodeString:\"@€²³ßÄÖÜ§$%@#\"\r\n"
+         }
+      ],
+      [
+         {
+            "name": "entry1",
+            "type": "bool",
+            "value": false
+         },
+         {
+            "name": "entry2",
+            "type": "long",
+            "value": "123"
+         },
+         {
+            "name": "entry3",
+            "type": "string",
+            "value": "\tTest\t String\t with\t WS\r\n\""
+         }
+      ]
+   ]
+}
