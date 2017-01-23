@@ -7,66 +7,73 @@
 
 struct obj_type
 {
-    obj_type(const char *_name) : name(_name) {};
+    obj_type(const char *_name = "") : name(_name) {};
     std::string name;
     std::string type;
     std::string value;
     std::vector<obj_type> childs;   //NOTE: recursive data type
 };
 
-//
-// TODO write ostream operator ...
-//
-void write_quoted_string(std::ostream& stream, const char* str, const char *endl = "")
+
+std::ostream& operator<<(std::ostream& rOut, const obj_type &property)
 {
-    stream << std::hex << std::right << std::setfill('0');
-    stream << '"';
-
-    while (*str != '\0')    //NOTE: NUL terminated string!
+    rOut << "{ \"name\" : \"" << property.name;
+    rOut << "\", \"type\" : \"" << property.type; // NOTE: as string! CK
+    rOut << "\", \"value\" : ";
+    if (!property.value.empty())
     {
-        switch (*str)
+        minijson::write_quoted_string(rOut, property.value.c_str(), "\n");
+    }
+    const std::string &typeCode = property.type;
+    bool isSimple = property.childs.empty();
+    bool isSimpleSequence = false;
+    if (!isSimple)
+    {
+        bool isFirst = true;
+        if (typeCode == "structsequence")
         {
-        case '"':
-            stream << "\\\"";
-            break;
-
-        case '\\':
-            stream << "\\\\";
-            break;
-
-        case '\n':
-            stream << "\\n";
-            break;
-
-        case '\r':
-            stream << "\\r";
-            break;
-
-        case '\t':
-            stream << "\\t";
-            break;
-
-        default:
-            //XXX this seems OK too!  if (std::iscntrl(*str))
-            //FIXME ASCII control characters (NUL is not supported)
-            if ((*str > 0 && *str < 32) || *str == 127)
+            rOut << "[ [";
+        }
+        else
+        {
+            rOut << "[";
+            if (typeCode != "struct")
             {
-                stream << "\\u";
-                stream.flush();
-                stream << std::setw(4) << static_cast<unsigned>(*str);
+                isSimpleSequence = true;
             }
+        }
+        const std::vector<obj_type>& childen = property.childs;
+        std::vector<obj_type>::const_iterator it = childen.begin();
+
+        for (; it != childen.end(); ++it)
+        {
+            if (isSimpleSequence)
+            {
+                rOut << (isFirst ? "" : ", ") << (*it).value;    //NOTE: only valid for sequence of simple! CK
+            }
+#if 0   // FIXME! CK
+            else if (typeCode == "structsequence")
+            {
+                rOut << (isFirst ? "" : " ], [") << *it;
+            }
+#endif
             else
             {
-                stream << *str;
+                rOut << (isFirst ? "" : ", ") << *it;
             }
-            break;
+            isFirst = false;
         }
-        str++;
+        if (typeCode == "structsequence")
+        {
+            rOut << "] ]";
+        }
+        else
+        {
+            rOut << "]";
+        }
     }
 
-    stream << '"';
-    stream.flush();
-    stream << std::dec << endl;
+    return rOut << "}";
 }
 
 
@@ -77,39 +84,46 @@ void parse_array_empty_handler(minijson::value);
 template<typename Context>
 struct parse_object_nested_handler;
 
+
 template<typename Context>
 struct parse_array_nested_handler
 {
     Context& context;
     size_t counter;
+    obj_type &myobj;
 
-    explicit parse_array_nested_handler(Context& context) :
-        context(context), counter(0) {}
+    explicit parse_array_nested_handler(Context& context, obj_type &obj) :
+        context(context), counter(0), myobj(obj) {}
 
     ~parse_array_nested_handler() {}
 
     void operator()(const minijson::value& v)
     {
         // write ',' only if needed
-        if (counter) std::cout << ", ";
+        if (counter) { std::cout << ", "; }
 
-        if (minijson::Array == v.type()) {
+        if (minijson::Array == v.type())
+        {
             std::cout << "[" << std::endl;
-            minijson::parse_array(context, parse_array_nested_handler(context));    // recursion
+            minijson::parse_array(context, parse_array_nested_handler(context, myobj));    // recursion
             std::cout << "]" << std::endl;
         }
         else if (minijson::Object == v.type())
         {
             std::cout << "{" << std::endl;
-            minijson::parse_object(context, parse_object_nested_handler<Context>(context));
+            obj_type child;
+            minijson::parse_object(context, parse_object_nested_handler<Context>(context, child));
+            myobj.childs.push_back(child);
             std::cout << "}" << std::endl;
         }
         else if (minijson::String == v.type())
         {
-            //XXX std::cout << "\t\"" << v.as_string() << "\"" << std::endl;
-            write_quoted_string(std::cout, v.as_string(), "\n");
+            minijson::write_quoted_string(std::cout, v.as_string(), "\n");
+            obj_type child;
+            child.value = v.as_string();
+            myobj.childs.push_back(child);
         }
-        else if (minijson::Boolean == v.type()) { std::cout << "\t" << std::boolalpha << v.as_bool() << std::endl; }
+        //TODO else if (minijson::Boolean == v.type()) { std::cout << "\t" << std::boolalpha << v.as_bool() << std::endl; }
         else
         {
             throw minijson::parse_error(context, minijson::parse_error::INVALID_VALUE);
@@ -126,38 +140,46 @@ struct parse_object_nested_handler
 {
     Context& context;
     size_t counter;
+    obj_type &myobj;
 
-    explicit parse_object_nested_handler(Context& context) :
-        context(context), counter(0) {}
+
+    explicit parse_object_nested_handler(Context& context, obj_type &obj) :
+        context(context), counter(0), myobj(obj) {}
 
     ~parse_object_nested_handler() {}
 
     void operator()(const char* name, const minijson::value& v)
     {
         // write ',' only if needed!
-        if (counter) std::cout << ", ";
+        if (counter) { std::cout << ", "; }
 
         if (minijson::Object == v.type())
         {
             std::cout << "\t\"" << name << "\" : {" << std::endl;
-            minijson::parse_object(context, parse_object_nested_handler(context));  // recursion
+            obj_type child(name);
+            minijson::parse_object(context, parse_object_nested_handler(context, child));  // recursion
+            myobj.childs.push_back(child);
             std::cout << "} " << std::endl;
         }
         else if (minijson::Array == v.type())
         {
             std::cout << "\t\"" << name << "\" : [" << std::endl;
-            minijson::parse_array(context, parse_array_nested_handler<Context>(context));
+            minijson::parse_array(context, parse_array_nested_handler<Context>(context, myobj));
             std::cout << "] " << std::endl;
         }
         else if (minijson::String == v.type())
         {
-            std::cout << "\t\"" << name << "\" : "; //XXX \"" << v.as_string() << "\"" << std::endl;
-            write_quoted_string(std::cout, v.as_string(), "\n");
+            std::cout << "\t\"" << name << "\" : ";
+            minijson::write_quoted_string(std::cout, v.as_string(), "\n");
+            if (name == std::string("name")) { myobj.name = v.as_string(); }
+            else if (name == std::string("type")) { myobj.type = v.as_string(); }
+            else if (name == std::string("value")) { myobj.value = v.as_string(); }
+            else { throw minijson::parse_error(context, minijson::parse_error::INVALID_VALUE); }
+
         }
-        else if (minijson::Boolean == v.type()) { std::cout << "\t\"" << name << "\" : " << std::boolalpha << v.as_bool() << std::endl; }
+        //TODO else if (minijson::Boolean == v.type()) { std::cout << "\t\"" << name << "\" : " << std::boolalpha << v.as_bool() << std::endl; }
         else
         {
-            //XXX throw minijson::parse_error(context, minijson::parse_error::INVALID_VALUE);
             throw std::runtime_error("unexpeced type at parse_object_nested_handler()");
         }
 
@@ -170,14 +192,14 @@ int main()
 {
     using namespace minijson;
 
-    //TODO fill obj_type obj("");
+    obj_type obj("");
 
     try
     {
         //=================================
         istream_context ctx(std::cin);
         std::cout << "{" << std::endl;
-        parse_object(ctx, parse_object_nested_handler<minijson::istream_context>(ctx));
+        parse_object(ctx, parse_object_nested_handler<minijson::istream_context>(ctx, obj));
         std::cout << "}" << std::endl;
         //=================================
     }
@@ -186,6 +208,8 @@ int main()
         std::cerr << "EXCEPTION: " << e.what() << std::endl;
         return -1;
     }
+
+    std::cerr << obj << std::endl;
 
     return 0;
 }

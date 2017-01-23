@@ -5,7 +5,7 @@
       {
          "name": "entry1",
          "type": "bool",
-         "value": true
+         "value": "true"
       },
       {
          "name": "entry2",

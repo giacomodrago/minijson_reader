@@ -6,7 +6,7 @@
          {
             "name": "entry1",
             "type": "bool",
-            "value": true
+            "value": "true"
          },
          {
             "name": "entry2",
@@ -23,7 +23,7 @@
          {
             "name": "entry1",
             "type": "bool",
-            "value": false
+            "value": "false"
          },
          {
             "name": "entry2",

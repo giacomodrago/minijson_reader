@@ -11,8 +11,8 @@
             ]
          },
          "properties": {
-            "spid": "NL5151-03",
             "name": "Test Parcel 1",
+            "spid": "NL5151-03",
             "add": "Streetname 15",
             "zip": "XXXXPL",
             "city": "Nueoen",

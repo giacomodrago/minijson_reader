@@ -107,3 +107,5 @@ if(UNIX)
 endif()
 
 add_test(NAME all COMMAND minijson_reader_tests)
+
+install(FILES minijson_reader.hpp DESTINATION include)

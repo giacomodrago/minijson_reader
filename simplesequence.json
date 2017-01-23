@@ -2,9 +2,9 @@
    "name": "list",
    "type": "boolsequence",
    "value": [
-      true,
-      false,
-      false,
-      true
+      "true",
+      "false",
+      "false",
+      "true"
    ]
 }

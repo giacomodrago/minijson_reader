@@ -15,6 +15,7 @@
 
 #include <stdexcept>
 #include <istream>
+#include <iomanip>
 
 #define MJR_CPP11_SUPPORTED __cplusplus > 199711L || _MSC_VER >= 1800
 
@@ -1251,6 +1252,62 @@ void ignore(Context& context)
     detail::ignore<Context> ignore(context);
     ignore();
 }
+
+//
+// TODO write ostream operator ...
+//
+void write_quoted_string(std::ostream& stream, const char* str, const char *endl = "")
+{
+    stream << std::hex << std::right << std::setfill('0');
+    stream << '"';
+
+    while (*str != '\0')    //NOTE: NUL terminated string!
+    {
+        switch (*str)
+        {
+        case '"':
+            stream << "\\\"";
+            break;
+
+        case '\\':
+            stream << "\\\\";
+            break;
+
+        case '\n':
+            stream << "\\n";
+            break;
+
+        case '\r':
+            stream << "\\r";
+            break;
+
+        case '\t':
+            stream << "\\t";
+            break;
+
+        default:
+            //XXX this seems OK too!  if (std::iscntrl(*str))
+            //FIXME ASCII control characters (NUL is not supported)
+            if ((*str > 0 && *str < 32) || *str == 127)
+            {
+                stream << "\\u";
+                stream.flush();
+                stream << std::setw(4) << static_cast<unsigned>(*str);
+            }
+            else
+            {
+                stream << *str;
+            }
+            break;
+        }
+        str++;
+    }
+
+    stream << '"';
+    stream.flush();
+    stream << std::dec << endl;
+}
+
 
 } // namespace minijson
 
