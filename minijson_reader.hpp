@@ -46,8 +46,13 @@ class noncopyable
 private:
 
     // C++03 idiom to prevent copy construction and copy assignment
-    noncopyable(const noncopyable&);
-    noncopyable& operator=(const noncopyable&);
+    // C++11 preferred implementation to remove copy ctor
+    noncopyable(const noncopyable&) = delete;
+    noncopyable& operator=(const noncopyable&) = delete;
+    
+    // Consider also move semantic requirements
+    // noncopyable(const noncopyable&&) = delete;
+    // noncopyable& operator=(const noncopyable&&) = delete;
 
 public:
 
