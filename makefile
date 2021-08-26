@@ -1,4 +1,4 @@
-CXXFLAGS+=-std=c++14 -Wextra
+CXXFLAGS+=-std=c++2a -Wall -Wextra
 
 .PHONY: all test clean
 all: minijson_parser
@@ -9,6 +9,7 @@ test: all
 		echo $${file}; \
 		cat $${file} | ./minijson_parser | ./json_pp.py | diff -uw $${file} -; \
 	done
+#		cat $${file} | json_pp | diff -u $${file} -; \
 
 clean:
 	${RM} minijson_parser *.exe *.o *.orig

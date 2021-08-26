@@ -1,16 +1,16 @@
 {
-   "name": "structproperty",
-   "type": "struct",
-   "value": [
+   "name" : "structproperty",
+   "type" : "struct",
+   "value" : [
       {
-         "name": "entry1",
-         "type": "bool",
-         "value": "true"
+         "name" : "entry1",
+         "type" : "bool",
+         "value" : true
       },
       {
-         "name": "entry2",
-         "type": "long",
-         "value": "42"
+         "name" : "entry2",
+         "type" : "long",
+         "value" : 42
       }
    ]
 }

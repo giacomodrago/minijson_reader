@@ -1,44 +1,44 @@
 {
-   "type": "FeatureCollection",
-   "features": [
+   "type" : "FeatureCollection",
+   "features" : [
       {
-         "type": "Feature",
-         "geometry": {
-            "type": "Point",
-            "coordinates": [
-               "5.140439",
-               "51.686608"
+         "type" : "Feature",
+         "geometry" : {
+            "type" : "Point",
+            "coordinates" : [
+               5.140439,
+               51.686608
             ]
          },
-         "properties": {
-            "name": "Test Parcel 1",
-            "spid": "NL5151-03",
-            "add": "Streetname 15",
-            "zip": "XXXXPL",
-            "city": "Nueoen",
-            "country": "BE",
-            "phone": "0419248",
-            "oh": "Ma: 12:00 till 15:00"
+         "properties" : {
+            "name" : "Test Parcel 1",
+            "spid" : "NL5151-03",
+            "add" : "Streetname 15",
+            "zip" : "XXXXPL",
+            "city" : "Nueoen",
+            "country" : "BE",
+            "phone" : "0419248",
+            "oh" : "Ma: 12:00 till 15:00"
          }
       },
       {
-         "type": "Feature",
-         "geometry": {
-            "type": "Point",
-            "coordinates": [
-               "5.133729",
-               "51.681425"
+         "type" : "Feature",
+         "geometry" : {
+            "type" : "Point",
+            "coordinates" : [
+               5.133729,
+               51.681425
             ]
          },
-         "properties": {
-            "phoneFormatted": "(202) 507-8357",
-            "phone": "2025078357",
-            "add": "2221 I St NW",
-            "city": "Washington DC",
-            "country": "United States",
-            "crossStreet": "at 22nd St NW",
-            "postalCode": "20037",
-            "state": "D.C."
+         "properties" : {
+            "phoneFormatted" : "(202) 507-8357",
+            "phone" : "2025078357",
+            "add" : "2221 I St NW",
+            "city" : "Washington DC",
+            "country" : "United States",
+            "crossStreet" : "at 22nd St NW",
+            "postalCode" : "20037",
+            "state" : "D.C."
          }
       }
    ]

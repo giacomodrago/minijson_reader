@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 
 r"""Command-line tool to validate and pretty-print JSON
 
@@ -46,7 +46,7 @@ Pretty printing a compacted json file::
     }
 
 """
-from __future__ import with_statement
+
 import sys
 import simplejson as json
 

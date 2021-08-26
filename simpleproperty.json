@@ -1,5 +1,5 @@
 {
-   "name": "property",
-   "type": "float",
-   "value": "3.14"
+   "name" : "property",
+   "type" : "float",
+   "value" : "3.14"
 }
