@@ -900,7 +900,7 @@ struct parse_object_single_field_handler : check_on_destroy_handler {
   explicit parse_object_single_field_handler() : read_field(false) {}
 
   ~parse_object_single_field_handler() {
-    if (check_on_destroy) EXPECT_TRUE(read_field);
+    if (check_on_destroy) { EXPECT_TRUE(read_field); }
   }
 
   void operator()(const char* field_name, const minijson::value& field_value) {
@@ -923,7 +923,7 @@ struct parse_object_multiple_fields_handler : check_on_destroy_handler {
   std::bitset<7> h;
 
   ~parse_object_multiple_fields_handler() {
-    if (check_on_destroy) EXPECT_TRUE(h.all());
+    if (check_on_destroy) { EXPECT_TRUE(h.all()); }
   }
 
   void operator()(const char* n, const minijson::value& v) {
@@ -1000,7 +1000,7 @@ struct parse_object_nested_handler : check_on_destroy_handler {
   explicit parse_object_nested_handler(Context& context) : context(context) {}
 
   ~parse_object_nested_handler() {
-    if (check_on_destroy) EXPECT_TRUE(h.all());
+    if (check_on_destroy) { EXPECT_TRUE(h.all()); }
   }
 
   void operator()(const char* n, const minijson::value& v) {
@@ -1024,7 +1024,7 @@ struct parse_object_nested_handler : check_on_destroy_handler {
     explicit nested1_handler(Context& context) : context(context), read_field(false) {}
 
     ~nested1_handler() {
-      if (check_on_destroy) EXPECT_TRUE(read_field);
+      if (check_on_destroy) { EXPECT_TRUE(read_field); }
     }
 
     void operator()(const char* n, const minijson::value& v) {
@@ -1041,7 +1041,7 @@ struct parse_object_nested_handler : check_on_destroy_handler {
       explicit nested2_handler(Context& context) : context(context) {}
 
       ~nested2_handler() {
-        if (check_on_destroy) EXPECT_TRUE(h.all());
+        if (check_on_destroy) { EXPECT_TRUE(h.all()); }
       }
 
       void operator()(const char* n, const minijson::value& v) {
@@ -1094,7 +1094,7 @@ struct parse_array_single_elem_handler : check_on_destroy_handler {
   explicit parse_array_single_elem_handler() : read_elem(false) {}
 
   ~parse_array_single_elem_handler() {
-    if (check_on_destroy) EXPECT_TRUE(read_elem);
+    if (check_on_destroy) { EXPECT_TRUE(read_elem); }
   }
 
   void operator()(const minijson::value& elem_value) {
@@ -1118,7 +1118,7 @@ struct parse_array_single_elem2_handler : check_on_destroy_handler {
   explicit parse_array_single_elem2_handler() : read_elem(false) {}
 
   ~parse_array_single_elem2_handler() {
-    if (check_on_destroy) EXPECT_TRUE(read_elem);
+    if (check_on_destroy) { EXPECT_TRUE(read_elem); }
   }
 
   void operator()(const minijson::value& elem_value) {
@@ -1143,7 +1143,7 @@ struct parse_array_multiple_elems_handler : check_on_destroy_handler {
   parse_array_multiple_elems_handler() : counter(0) {}
 
   ~parse_array_multiple_elems_handler() {
-    if (check_on_destroy) EXPECT_EQ(7U, counter);
+    if (check_on_destroy) { EXPECT_EQ(7U, counter); }
   }
 
   void operator()(const minijson::value& v) {
@@ -1205,7 +1205,7 @@ struct parse_array_nested_handler : check_on_destroy_handler {
   explicit parse_array_nested_handler(Context& context) : counter(0), context(context) {}
 
   ~parse_array_nested_handler() {
-    if (check_on_destroy) EXPECT_EQ(2U, counter);
+    if (check_on_destroy) { EXPECT_EQ(2U, counter); }
   }
 
   void operator()(const minijson::value& v) {
@@ -1229,7 +1229,7 @@ struct parse_array_nested_handler : check_on_destroy_handler {
     explicit nested1_handler(Context& context) : context(context), read_elem(false) {}
 
     ~nested1_handler() {
-      if (check_on_destroy) EXPECT_TRUE(read_elem);
+      if (check_on_destroy) { EXPECT_TRUE(read_elem); }
     }
 
     void operator()(const minijson::value& v) {
@@ -1245,7 +1245,7 @@ struct parse_array_nested_handler : check_on_destroy_handler {
       explicit nested2_handler(Context& context) : counter(0), context(context) {}
 
       ~nested2_handler() {
-        if (check_on_destroy) EXPECT_EQ(2U, counter);
+        if (check_on_destroy) { EXPECT_EQ(2U, counter); }
       }
 
       void operator()(const minijson::value& v) {
@@ -1320,7 +1320,7 @@ TEST(minijson_reader, parse_object_truncated) {
     bool exception_thrown = false;
     try {
       minijson::parse_object(const_buffer_context, parse_dummy());
-    } catch (parse_error e) {
+    } catch (const parse_error& e) {
       exception_thrown = true;
 
       switch (i) {
@@ -1387,7 +1387,7 @@ TEST(minijson_reader, parse_array_truncated) {
     bool exception_thrown = false;
     try {
       minijson::parse_array(const_buffer_context, parse_dummy());
-    } catch (parse_error e) {
+    } catch (const parse_error& e) {
       exception_thrown = true;
 
       switch (i) {
@@ -1424,7 +1424,7 @@ void parse_object_invalid_helper(const char (&buffer)[Length],
 
   try {
     minijson::parse_object(const_buffer_context, parse_dummy());
-  } catch (minijson::parse_error e) {
+  } catch (const minijson::parse_error& e) {
     exception_thrown = true;
     ASSERT_EQ(expected_reason, e.reason());
     if (expected_what) { ASSERT_STREQ(expected_what, e.what()); }
@@ -1444,7 +1444,7 @@ void parse_object_invalid_helper2(const char (&buffer)[Length],
   try {
     minijson::parse_object(const_buffer_context,
         parse_dummy_consume<minijson::const_buffer_context>(const_buffer_context));
-  } catch (minijson::parse_error e) {
+  } catch (const minijson::parse_error& e) {
     exception_thrown = true;
     ASSERT_EQ(expected_reason, e.reason());
     if (expected_what) { ASSERT_STREQ(expected_what, e.what()); }
@@ -1463,7 +1463,7 @@ void parse_array_invalid_helper(const char (&buffer)[Length],
 
   try {
     minijson::parse_array(const_buffer_context, parse_dummy());
-  } catch (minijson::parse_error e) {
+  } catch (const minijson::parse_error& e) {
     exception_thrown = true;
     ASSERT_EQ(expected_reason, e.reason());
     if (expected_what) { ASSERT_STREQ(expected_what, e.what()); }
@@ -1482,7 +1482,7 @@ void parse_array_invalid_helper2(const char (&buffer)[Length],
 
   try {
     minijson::parse_array(const_buffer_context, parse_dummy_consume<minijson::const_buffer_context>(const_buffer_context));
-  } catch (minijson::parse_error e) {
+  } catch (const minijson::parse_error& e) {
     exception_thrown = true;
     ASSERT_EQ(expected_reason, e.reason());
     if (expected_what) { ASSERT_STREQ(expected_what, e.what()); }
