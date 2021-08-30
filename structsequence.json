@@ -16,7 +16,7 @@
          {
             "name" : "entry3",
             "type" : "string",
-            "value" : "\tUnicodeString:\"@€²³ßÄÖÜ§$%@#\"\r\n"
+            "value" : "\tUnicodeString:\"@\u20ac\u00b2\u00b3\u00df\u00c4\u00d6\u00dc\u00a7$%@#\"\r\n"
          }
       ],
       [

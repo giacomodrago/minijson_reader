@@ -38,20 +38,20 @@ ColumnLimit:      123 # XXX CK!
 DerivePointerAlignment: false
 IncludeBlocks:   Regroup
 IncludeCategories:
-  - Regex:           '^<ext/.*\.h>'
+  - Regex:           '^<ext/.*\.(h|hpp)>'
     Priority:        2
     SortPriority:    0
     CaseSensitive:   false
-  - Regex:           '^<.*\.h>'
-    Priority:        1
+  - Regex:           '^<.*\.(h|hpp)>'
+    Priority:        3
     SortPriority:    0
     CaseSensitive:   false
   - Regex:           '^<.*'
-    Priority:        2
+    Priority:        4
     SortPriority:    0
     CaseSensitive:   false
   - Regex:           '.*'
-    Priority:        3
+    Priority:        1
     SortPriority:    0
     CaseSensitive:   false
 IncludeIsMainRegex: '([-_](test|unittest))?$'

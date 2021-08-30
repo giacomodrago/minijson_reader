@@ -1,9 +1,9 @@
+#include "minijson_reader.hpp"
+
 #include <exception>
-#include <iomanip>
+// TODO #include <iomanip>  // boolalpha
 #include <iostream>
 #include <vector>
-
-#include "minijson_reader.hpp"
 
 #ifdef VERBOSE
 #  define TRACE(str) (std::cerr << str << std::endl)

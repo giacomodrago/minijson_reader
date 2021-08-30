@@ -1,8 +1,8 @@
 /***
-clausklein$ make CXXFLAGS='-std=c++14 -Wextra' minijson_example
-c++ -std=c++14 -Wextra    minijson_example.cpp   -o minijson_example
+clausklein$ make CXXFLAGS='-std=c++17 -Wextra' minijson_example
+c++ -std=c++17 -Wextra    minijson_example.cpp   -o minijson_example
 
-clausklein$ ./minijson_example | json_pp.py
+clausklein$ ./minijson_example | ./json_pp.py
 {
    "field1": 42,
    "array": [
@@ -35,11 +35,11 @@ clausklein$ ./minijson_example | json_pp.py
 clausklein$
  ***/
 
+#include "minijson_reader.hpp"
+
 #include <cassert>
 #include <exception>
 #include <iostream>
-
-#include "minijson_reader.hpp"
 
 static char json_obj[] = "{ \"field1\": 42, \"array\" : [ 1, 2, 3 ], \"field2\": \"asd\", "
                          "\"nested\" : { \"field1\" : 42.0, \"field2\" : true, "
@@ -49,8 +49,7 @@ static char json_obj[] = "{ \"field1\": 42, \"array\" : [ 1, 2, 3 ], \"field2\":
 
 struct obj_type {
   long long field1 = 0L;
-  std::string field2;  // you can use a const char*, but
-  // in that case beware of lifetime!
+  std::string field2;  // you can use a const char*, but in that case beware of lifetime!
   struct {
     double field1 = 0.0;
     bool field2 = false;

@@ -1,8 +1,8 @@
+#include "minijson_reader.hpp"
+
 #include <gtest/gtest.h>
 
 #include <bitset>
-
-#include "minijson_reader.hpp"
 
 template <typename T, size_t Size>
 bool arrays_match(const T (&expected)[Size], const T (&actual)[Size]) {

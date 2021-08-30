@@ -1,11 +1,10 @@
 #ifndef MINIJSON_READER_H
 #  define MINIJSON_READER_H
 
-#  include <stdint.h>
-
 #  include <cctype>
 #  include <cerrno>
 #  include <climits>
+#  include <cstdint>
 #  include <cstdlib>
 #  include <cstring>
 #  include <iomanip>
