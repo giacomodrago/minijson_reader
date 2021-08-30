@@ -890,7 +890,7 @@ struct check_on_destroy_handler {
   check_on_destroy_handler() : check_on_destroy(true) {}
 
   check_on_destroy_handler(const check_on_destroy_handler& other) : check_on_destroy(true) {
-    other.check_on_destroy = false;
+    other.check_on_destroy = false;  // FIXME: warning: mutating copied object [cert-oop58-cpp]
   }
 };
 

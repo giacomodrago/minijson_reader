@@ -138,14 +138,15 @@ class istream_context MJR_FINAL : public detail::context_base {
   explicit istream_context(std::istream& stream) : m_stream(stream), m_read_offset(0) { new_write_buffer(); }
 
   char read() {
-    const char c = static_cast<const char>(m_stream.get());
+    char c{};
+    m_stream.get(c);
     if (m_stream) {
       m_read_offset++;
 
       return c;
-    } else {
-      return 0;
     }
+
+    return 0;
   }
 
   size_t read_offset() const { return m_read_offset; }

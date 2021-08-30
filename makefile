@@ -1,6 +1,6 @@
 CXXFLAGS+=-std=c++2a -Wall -Wextra
 
-.PHONY: all test clean
+.PHONY: all test clean check
 all: minijson_parser
 
 test: all
@@ -13,3 +13,6 @@ test: all
 
 clean:
 	${RM} minijson_parser *.exe *.o *.orig
+
+check: build
+	run-clang-tidy.py -p build -checks='-modernize-*,-misc-no-recursion'
