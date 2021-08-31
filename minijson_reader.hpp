@@ -341,7 +341,7 @@ inline long long parse_longlong(const char* str, int base = 10) {
   errno = 0;                // reset errno
 
   char* endptr;
-  const long long result = std::strtoll(str, &endptr, base);
+  const long long result = std::strtoll(str, &endptr, base);  // FIXME: use std::stoll()! CK
 
   std::swap(saved_errno, errno);  // restore errno
 
@@ -374,7 +374,7 @@ inline double parse_double(const char* str) {
   errno = 0;                // reset errno
 
   char* endptr;
-  const double result = std::strtod(str, &endptr);
+  const double result = std::strtod(str, &endptr);  // FIXME: use std::stod()! CK
 
   std::swap(saved_errno, errno);  // restore errno
 
@@ -530,7 +530,7 @@ char read_unquoted_value(Context& context, char first_char = 0) {
 
 }  // namespace detail
 
-enum value_type { String, Number, Boolean, Object, Array, Null };
+enum value_type { String, Number, Boolean, Object, Array, Null, Double };
 
 class value MJR_FINAL {
  private:
@@ -551,9 +551,7 @@ class value MJR_FINAL {
 
   long long as_longlong() const { return m_long_value; }
 
-  bool as_bool() const {
-    return (m_long_value) ? true : false;  // to avoid VS2013 warnings
-  }
+  bool as_bool() const { return (m_long_value) ? true : false; }
 
   double as_double() const { return m_double_value; }
 };  // class value
@@ -580,6 +578,11 @@ value parse_unquoted_value(const Context& context) {
     } catch (const number_parse_error&) {
       try {
         double_value = parse_double(buffer);
+
+#  ifdef VERBOSE
+        return value(Double, buffer, long_value, double_value);  // TODO: distinguish Double from Number! CK
+#  endif
+
       } catch (const number_parse_error&) { throw parse_error(context, parse_error::INVALID_VALUE); }
     }
 

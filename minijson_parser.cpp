@@ -14,7 +14,8 @@
 #endif
 
 struct obj_type {
-  obj_type(const char* _name = "") : name(_name){};
+  obj_type() = default;
+  obj_type(std::string _name) : name(_name){};
   std::string name;
   std::string type;
   std::string value;
@@ -23,12 +24,14 @@ struct obj_type {
 
 void write_structsequence(std::ostream& stream, const obj_type& property);
 
+// TODO: use minijson_writer()! CK
 std::ostream& operator<<(std::ostream& rOut, const obj_type& property) {
   TRACEFUNC;
 
   rOut << "{ \"name\" : \"" << property.name;    // XXX start object -> '{'
   rOut << "\", \"type\" : \"" << property.type;  // NOTE: as string! CK
   rOut << "\", \"value\" : ";
+
   if (!property.value.empty()) { minijson::write_quoted_string(rOut, property.value.c_str(), "\n"); }
 
   const std::string& typeCode = property.type;
@@ -59,7 +62,7 @@ std::ostream& operator<<(std::ostream& rOut, const obj_type& property) {
         rOut << (isFirst ? "" : "], [") << std::endl;
         write_structsequence(rOut, *it);
       } else {
-        rOut << (isFirst ? "" : ", ") << *it;  // NOTE: recursion
+        rOut << (isFirst ? "" : ", ") << *it;  // NOTE: recursion! CK
       }
 
       isFirst = false;
@@ -115,7 +118,7 @@ struct parse_array_nested_handler {
     if (minijson::Array == v.type()) {
       // TRACE std::cout << "[" << std::endl;
       if (myobj.type == "structsequence") {
-        TRACE(myobj.type);
+        // TRACE(myobj.type);
 
         obj_type child;
         minijson::parse_array(context, parse_array_nested_handler(context, child));  // NOTE: recursion
@@ -130,18 +133,22 @@ struct parse_array_nested_handler {
       minijson::parse_object(context, parse_object_nested_handler<Context>(context, child));
       myobj.childs.push_back(child);
       // TRACE std::cout << "}" << std::endl;
-    } else if (minijson::String == v.type()) {
-      // TRACE minijson::write_quoted_string(std::cout, v.as_string(), "\n");
-      obj_type child;
-      child.value = v.as_string();
-      myobj.childs.push_back(child);
-    }
-    // TODO else if (minijson::Boolean == v.type()) { std::cout << "\t" <<
-    // std::boolalpha << v.as_bool() << std::endl; }
-    else {
+
+      // NOTE: not needed! CK
+      // } else if (minijson::String == v.type()) {
+      //   // TRACE minijson::write_quoted_string(std::cout, v.as_string(), "\n");
+      //   obj_type child;
+      //   child.value = v.as_string();
+      //   myobj.childs.push_back(child);
+      // } else if (minijson::Boolean == v.type()) {
+      //   std::cerr << "\t" << std::boolalpha << v.as_bool() << std::endl;
+      // } else if (minijson::Number == v.type()) {
+      //   std::cerr << "\t" << v.as_long() << std::endl;
+      //   std::cerr << "\t" << v.as_double() << std::endl;
+
+    } else {
       throw minijson::parse_error(context, minijson::parse_error::INVALID_VALUE);
-      // XXX throw std::runtime_error("unexpeced type at
-      // parse_array_nested_handler()");
+      // XXX throw std::runtime_error("unexpeced type at parse_array_nested_handler()");
     }
 
     ++counter;
@@ -188,11 +195,16 @@ struct parse_object_nested_handler {
       } else {
         throw minijson::parse_error(context, minijson::parse_error::INVALID_VALUE);
       }
-
-    }
-    // TODO else if (minijson::Boolean == v.type()) { std::cout << "\t\"" <<
-    // name << "\" : " << std::boolalpha << v.as_bool() << std::endl; }
-    else {
+    } else if (minijson::Boolean == v.type()) {
+      std::cerr << "\t" << name << ":" << std::boolalpha << v.as_bool() << std::endl;
+      myobj.value = std::to_string(v.as_bool());
+    } else if (minijson::Number == v.type()) {
+      std::cerr << "\t" << name << ":" << v.as_long() << std::endl;
+      myobj.value = std::to_string(v.as_long());
+    } else if (minijson::Double == v.type()) {
+      std::cerr << "\t" << name << ":" << v.as_double() << std::endl;
+      myobj.value = std::to_string(v.as_double());
+    } else {
       throw std::runtime_error("unexpeced type at parse_object_nested_handler()");
     }
 
@@ -203,7 +215,7 @@ struct parse_object_nested_handler {
 int main() {
   using namespace minijson;
 
-  obj_type obj("");
+  obj_type obj;
 
   try {
     //=================================
