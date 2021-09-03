@@ -156,8 +156,7 @@ class istream_context MJR_FINAL : public detail::context_base {
   void write(char c) { m_write_buffers.back().push_back(c); }
 
   // This method to retrieve the address of the write buffer MUST be called
-  // AFTER all the calls to write() for the current write buffer have been
-  // performed
+  // AFTER all the calls to write() for the current write buffer have been performed
   const char* write_buffer() const { return !m_write_buffers.back().empty() ? &m_write_buffers.back()[0] : NULL; }
 };  // class istream_context
 
@@ -225,8 +224,7 @@ struct utf8_char {
   uint8_t bytes[4];
 
   utf8_char() {
-    // wanted use value-initialization, but couldn't because of a weird VS2013
-    // warning
+    // wanted use value-initialization, but couldn't because of a weird VS2013 warning
     std::fill_n(bytes, sizeof(bytes), 0);
   }
 
@@ -362,8 +360,7 @@ inline double parse_double(const char* str) {
     throw number_parse_error();
   }
 
-  // we perform this check to reject hex numbers (supported in C++11) and string
-  // with leading spaces
+  // we perform this check to reject hex numbers (supported in C++11) and string with leading spaces
   for (const char* c = str; *c != 0; c++) {
     if (!(isdigit(*c) || (*c == '+') || (*c == '-') || (*c == '.') || (*c == 'e') || (*c == 'E'))) {
       throw number_parse_error();
