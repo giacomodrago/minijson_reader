@@ -1,39 +1,39 @@
 {
-   "name" : "structSequenceProperty",
-   "type" : "structsequence",
-   "value" : [
+   "name": "structSequenceProperty",
+   "type": "structsequence",
+   "value": [
       [
          {
-            "name" : "entry1",
-            "type" : "bool",
-            "value" : true
+            "name": "entry1",
+            "type": "bool",
+            "value": true
          },
          {
-            "name" : "entry2",
-            "type" : "long",
-            "value" : 42
+            "name": "entry2",
+            "type": "long",
+            "value": 42
          },
          {
-            "name" : "entry3",
-            "type" : "string",
-            "value" : "\tUnicodeString:\"@\u20ac\u00b2\u00b3\u00df\u00c4\u00d6\u00dc\u00a7$%@#\"\r\n"
+            "name": "entry3",
+            "type": "string",
+            "value": "\tUnicodeString:\"@\u20ac\u00b2\u00b3\u00df\u00c4\u00d6\u00dc\u00a7$%@#\"\r\n"
          }
       ],
       [
          {
-            "name" : "entry1",
-            "type" : "bool",
-            "value" : false
+            "name": "entry1",
+            "type": "bool",
+            "value": false
          },
          {
-            "name" : "entry2",
-            "type" : "long",
-            "value" : 123
+            "name": "entry2",
+            "type": "long",
+            "value": 123
          },
          {
-            "name" : "entry3",
-            "type" : "string",
-            "value" : "\tTest\t String\t with\t WS\r\n\""
+            "name": "entry3",
+            "type": "string",
+            "value": "\tTest\t String\t with\t WS\r\n\""
          }
       ]
    ]

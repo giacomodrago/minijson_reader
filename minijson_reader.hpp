@@ -7,21 +7,14 @@
 #  include <cstdint>
 #  include <cstdlib>
 #  include <cstring>
+#  include <exception>
 #  include <iomanip>
+#  include <iostream>
 #  include <istream>
 #  include <list>
-#  include <stdexcept>
 #  include <string>
 #  include <utility>
 #  include <vector>
-
-#  define MJR_CPP11_SUPPORTED __cplusplus > 199711L || _MSC_VER >= 1800
-
-#  if MJR_CPP11_SUPPORTED
-#    define MJR_FINAL final
-#  else
-#    define MJR_FINAL
-#  endif  // MJR_CPP11_SUPPORTED
 
 #  ifndef MJR_NESTING_LIMIT
 #    define MJR_NESTING_LIMIT 32
@@ -113,12 +106,12 @@ class buffer_context_base : public context_base {
 
 }  // namespace detail
 
-class buffer_context MJR_FINAL : public detail::buffer_context_base {
+class buffer_context final : public detail::buffer_context_base {
  public:
   explicit buffer_context(char* buffer, size_t length) : detail::buffer_context_base(buffer, buffer, length) {}
 };  // class buffer_context
 
-class const_buffer_context MJR_FINAL : public detail::buffer_context_base {
+class const_buffer_context final : public detail::buffer_context_base {
  public:
   explicit const_buffer_context(const char* buffer, size_t length)
       : detail::buffer_context_base(buffer, new char[length], length)
@@ -128,7 +121,7 @@ class const_buffer_context MJR_FINAL : public detail::buffer_context_base {
   ~const_buffer_context() { delete[] m_write_buffer; }
 };  // class const_buffer_context
 
-class istream_context MJR_FINAL : public detail::context_base {
+class istream_context final : public detail::context_base {
  private:
   std::istream& m_stream;
   size_t m_read_offset;
@@ -245,7 +238,7 @@ struct utf8_char {
 };  // struct utf8_char
 
 // this exception is not to be propagated outside minijson
-struct encoding_error {};
+struct encoding_error {};  // TODO: should be a std::exception! CK
 
 inline uint32_t utf16_to_utf32(uint16_t high, uint16_t low) {
   uint32_t result;
@@ -306,27 +299,39 @@ inline utf8_char utf32_to_utf8(uint32_t utf32_char) {
 inline utf8_char utf16_to_utf8(uint16_t high, uint16_t low) { return utf32_to_utf8(utf16_to_utf32(high, low)); }
 
 // this exception is not to be propagated outside minijson
-struct number_parse_error {};
+struct number_parse_error {};  // TODO: should be a std::exception! CK
 
 inline long parse_long(const char* str, int base = 10) {
   // we don't accept empty strings or strings with leading spaces
   if ((str == NULL) || (*str == 0) || isspace(str[0])) { throw number_parse_error(); }
 
+#  if 1                     // NOTE: Needed, but this use of errno is not reentrant! CK
   int saved_errno = errno;  // save errno
   errno = 0;                // reset errno
 
   char* endptr;
-  const long result = std::strtol(str, &endptr, base);
+  long result = std::strtol(str, &endptr, base);
 
   std::swap(saved_errno, errno);  // restore errno
 
-  if (*endptr != 0)  // we didn't consume the whole string
-  {
-    throw number_parse_error();
-  } else if ((saved_errno == ERANGE) && ((result == LONG_MIN) || (result == LONG_MAX)))  // overflow
+  if ((*endptr != 0) ||                                                             // we didn't consume the whole string
+      ((saved_errno == ERANGE) && ((result == LONG_MIN) || (result == LONG_MAX))))  // overflow
   {
     throw number_parse_error();
   }
+#  else
+  auto pos =
+      std::string(str).find_first_not_of(std::string("-0123456789abcdefxABCDEF", base + 2 + ((base == 16) ? 6 : 0)));
+  if (pos != std::string::npos) {
+    std::cerr << str << std::endl;
+    throw number_parse_error();
+  }
+
+  long result{};
+  try {
+    result = std::stol(str, nullptr, base);
+  } catch (const std::exception&) { throw number_parse_error(); }
+#  endif
 
   return result;
 }
@@ -335,21 +340,33 @@ inline long long parse_longlong(const char* str, int base = 10) {
   // we don't accept empty strings or strings with leading spaces
   if ((str == NULL) || (*str == 0) || isspace(str[0])) { throw number_parse_error(); }
 
+#  if 1                     // NOTE: Needed, but this use of errno is not reentrant! CK
   int saved_errno = errno;  // save errno
   errno = 0;                // reset errno
 
   char* endptr;
-  const long long result = std::strtoll(str, &endptr, base);  // FIXME: use std::stoll()! CK
+  long long result = std::strtoll(str, &endptr, base);
 
   std::swap(saved_errno, errno);  // restore errno
 
-  if (*endptr != 0)  // we didn't consume the whole string
-  {
-    throw number_parse_error();
-  } else if ((saved_errno == ERANGE) && ((result == LLONG_MIN) || (result == LLONG_MAX)))  // overflow
+  if ((*endptr != 0) ||                                                               // we didn't consume the whole string
+      ((saved_errno == ERANGE) && ((result == LLONG_MIN) || (result == LLONG_MAX))))  // overflow
   {
     throw number_parse_error();
   }
+#  else
+  auto pos =
+      std::string(str).find_first_not_of(std::string("-0123456789abcdefxABCDEF", base + 2 + ((base == 16) ? 6 : 0)));
+  if (pos != std::string::npos) {
+    std::cerr << str << std::endl;
+    throw number_parse_error();
+  }
+
+  long long result{};
+  try {
+    result = std::stoll(str, nullptr, base);
+  } catch (const std::exception&) { throw number_parse_error(); }
+#  endif
 
   return result;
 }
@@ -367,21 +384,26 @@ inline double parse_double(const char* str) {
     }
   }
 
+#  if 1
   int saved_errno = errno;  // save errno
   errno = 0;                // reset errno
 
   char* endptr;
-  const double result = std::strtod(str, &endptr);  // FIXME: use std::stod()! CK
+  const double result = std::strtod(str, &endptr);
 
   std::swap(saved_errno, errno);  // restore errno
 
-  if (*endptr != 0)  // we didn't consume the whole string
-  {
-    throw number_parse_error();
-  } else if (saved_errno == ERANGE)  // underflow or overflow
+  if ((*endptr != 0) ||         // we didn't consume the whole string
+      (saved_errno == ERANGE))  // underflow or overflow
   {
     throw number_parse_error();
   }
+#  else
+  double result{};
+  try {
+    result = std::stod(str);
+  } catch (const std::exception&) { throw number_parse_error(); }
+#  endif
 
   return result;
 }
@@ -529,7 +551,7 @@ char read_unquoted_value(Context& context, char first_char = 0) {
 
 enum value_type { String, Number, Boolean, Object, Array, Null, Double };
 
-class value MJR_FINAL {
+class value final {
  private:
   value_type m_type;
   const char* m_buffer;
@@ -544,7 +566,7 @@ class value MJR_FINAL {
 
   const char* as_string() const { return m_buffer; }
 
-  long as_long() const { return static_cast<long>(m_long_value); }
+  int32_t as_long() const { return static_cast<int32_t>(m_long_value); }
 
   long long as_longlong() const { return m_long_value; }
 
@@ -575,11 +597,7 @@ value parse_unquoted_value(const Context& context) {
     } catch (const number_parse_error&) {
       try {
         double_value = parse_double(buffer);
-
-#  ifdef VERBOSE
-        return value(Double, buffer, long_value, double_value);  // TODO: distinguish Double from Number! CK
-#  endif
-
+        return value(Double, buffer, long_value, double_value);  // NOTE: distinguish Double from Number! CK
       } catch (const number_parse_error&) { throw parse_error(context, parse_error::INVALID_VALUE); }
     }
 
@@ -897,13 +915,12 @@ void ignore(Context& context) {
 //
 // TODO write ostream operator ...
 //
-void write_quoted_string(std::ostream& stream, const char* str, const char* endl = "") {
+void write_quoted_string(std::ostream& stream, const std::string_view str, const char* endl = "") {
   stream << std::hex << std::right << std::setfill('0');
   stream << '"';
 
-  while (*str != '\0')  // NOTE: NUL terminated string!
-  {
-    switch (*str) {
+  for (auto c : str) {
+    switch (c) {
       case '"': stream << "\\\""; break;
 
       case '\\': stream << "\\\\"; break;
@@ -915,18 +932,16 @@ void write_quoted_string(std::ostream& stream, const char* str, const char* endl
       case '\t': stream << "\\t"; break;
 
       default:
-        // XXX this seems OK too!  if (std::iscntrl(*str))
-        // FIXME ASCII control characters (NUL is not supported)
-        if ((*str > 0 && *str < 32) || *str == 127) {
+        // TODO: that may all right too OK CK!  if (std::iscntrl(c))
+        if ((c >= 0 && c < 32) || c == 127) {
           stream << "\\u";
           stream.flush();
-          stream << std::setw(4) << static_cast<unsigned>(*str);
+          stream << std::setw(4) << static_cast<unsigned>(c);
         } else {
-          stream << *str;
+          stream << c;
         }
         break;
     }
-    str++;
   }
 
   stream << '"';

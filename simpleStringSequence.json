@@ -1,0 +1,15 @@
+{
+   "name": "list",
+   "type": "stringsequence",
+   "value": [
+      "Merkur",
+      "Venus",
+      "Erde",
+      "Mars",
+      "Jupiter",
+      "Saturn",
+      "Uranus",
+      "Neptun",
+      "But Pluto counts not longer as planet."
+   ]
+}

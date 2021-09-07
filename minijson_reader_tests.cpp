@@ -133,11 +133,10 @@ void test_context_copy_construction_helper(const Context& original) {
 TEST(minijson_reader, context_no_copy_construction) {
   std::istringstream ss;
 
-  // this test is compile-time only: uncommenting any of the following lines
-  // should cause a compile error
+  // this test is compile-time only: uncommenting any of the following lines should cause a compile error
   // test_context_copy_construction_helper(minijson::buffer_context(NULL, 0));
-  // test_context_copy_construction_helper(minijson::const_buffer_context(NULL,
-  // 0)); test_context_copy_construction_helper(minijson::istream_context(ss));
+  // test_context_copy_construction_helper(minijson::const_buffer_context(NULL, 0));
+  // test_context_copy_construction_helper(minijson::istream_context(ss));
 
   (void)ss;
 }
@@ -153,14 +152,10 @@ TEST(minijson_reader, context_no_copy_assignment) {
   minijson::const_buffer_context const_buffer_context(NULL, 0);
   minijson::istream_context istream_context(ss);
 
-  // this test is compile-time only: uncommenting any of the following lines
-  // should cause a compile error
-  // test_context_copy_assignment_helper(minijson::buffer_context(NULL, 0),
-  // buffer_context);
-  // test_context_copy_assignment_helper(minijson::const_buffer_context(NULL,
-  // 0), const_buffer_context);
-  // test_context_copy_assignment_helper(minijson::istream_context(ss),
-  // istream_context);
+  // this test is compile-time only: uncommenting any of the following lines should cause a compile error
+  // test_context_copy_assignment_helper(minijson::buffer_context(NULL, 0), buffer_context);
+  // test_context_copy_assignment_helper(minijson::const_buffer_context(NULL, 0), const_buffer_context);
+  // test_context_copy_assignment_helper(minijson::istream_context(ss), istream_context);
 
   (void)ss;
   (void)buffer_context;
@@ -315,8 +310,8 @@ TEST(minijson_reader_detail, utf32_to_utf8_invalid) {
 }
 
 TEST(minijson_reader_detail, utf16_to_utf8) {
-  // Just one test case, since utf16_to_utf8 calls utf16_to_utf32 and
-  // utf32_to_utf8, and other cases have been covered by previous tests
+  // Just one test case, since utf16_to_utf8 calls utf16_to_utf32 and utf32_to_utf8,
+  // and other cases have been covered by previous tests
 
   const uint8_t expected[] = {0xF4, 0x8F, 0xBF, 0xBF};
   ASSERT_TRUE(arrays_match(expected, minijson::detail::utf16_to_utf8(0xDBFF, 0xDFFF).bytes));
@@ -326,19 +321,22 @@ TEST(minijson_reader_detail, parse_long) {
   ASSERT_EQ(0, minijson::detail::parse_long("0"));
   ASSERT_EQ(42, minijson::detail::parse_long("42"));
   ASSERT_EQ(-42, minijson::detail::parse_long("-42"));
-  ASSERT_EQ(42, minijson::detail::parse_long("+42"));
+  // RFC8259: an integer component that may be prefixed with an optional minus sign! CK
+  // XXX ASSERT_EQ(42, minijson::detail::parse_long("+42"));
   ASSERT_EQ(42, minijson::detail::parse_long("042"));
   ASSERT_EQ(255, minijson::detail::parse_long("ff", 16));
   ASSERT_EQ(255, minijson::detail::parse_long("0xff", 16));
   ASSERT_EQ(255, minijson::detail::parse_long("0ff", 16));
+  ASSERT_EQ(255, minijson::detail::parse_long("FF", 16));
+  ASSERT_EQ(255, minijson::detail::parse_long("0xFF", 16));
+  ASSERT_EQ(255, minijson::detail::parse_long("0Ff", 16));
 
-  char buf[64];
+  char buf[64]{};
+  sprintf(buf, "%ld", std::numeric_limits<long>::max());
+  ASSERT_EQ(std::numeric_limits<long>::max(), minijson::detail::parse_longlong(buf));
 
-  sprintf(buf, "%ld", LONG_MAX);
-  ASSERT_EQ(LONG_MAX, minijson::detail::parse_long(buf));
-
-  sprintf(buf, "%ld", LONG_MIN);
-  ASSERT_EQ(LONG_MIN, minijson::detail::parse_long(buf));
+  sprintf(buf, "%ld", std::numeric_limits<long>::min());
+  ASSERT_EQ(std::numeric_limits<long>::min(), minijson::detail::parse_longlong(buf));
 }
 
 TEST(minijson_reader_detail, parse_long_invalid) {
@@ -352,13 +350,34 @@ TEST(minijson_reader_detail, parse_long_invalid) {
   ASSERT_THROW(minijson::detail::parse_long("78945 "), minijson::detail::number_parse_error);
   ASSERT_THROW(minijson::detail::parse_long("0x0"), minijson::detail::number_parse_error);
 
-  ASSERT_THROW(minijson::detail::parse_long("123456789012345678901234567890"), minijson::detail::number_parse_error);
-  ASSERT_THROW(minijson::detail::parse_long("-123456789012345678901234567890"), minijson::detail::number_parse_error);
+  // NOTE:: LLONG_MAX=9223372036854775807! CK
+  ASSERT_THROW(minijson::detail::parse_longlong("123456789012345678901234567890"), minijson::detail::number_parse_error);
+  ASSERT_THROW(minijson::detail::parse_longlong("-123456789012345678901234567890"), minijson::detail::number_parse_error);
+
+  char buf[128]{};
+  sprintf(buf, "%lld", std::numeric_limits<long long>::max());
+  auto result = minijson::detail::parse_longlong(buf);
+  ASSERT_EQ(std::numeric_limits<long long>::max(), result);
+
+  sprintf(buf, "%lld", std::numeric_limits<long long>::min());
+  result = minijson::detail::parse_longlong(buf);
+  ASSERT_EQ(std::numeric_limits<long long>::min(), result);
 }
 
 TEST(minijson_reader_detail, parse_long_invalid_restore_errno) {
   errno = 42;
+
+#if 1
+  // NOTE: LLONG_MAX=9223372036854775807! CK
   ASSERT_THROW(minijson::detail::parse_long("123456789012345678901234567890"), minijson::detail::number_parse_error);
+  ASSERT_THROW(minijson::detail::parse_longlong("123456789012345678901234567890"), minijson::detail::number_parse_error);
+#else
+  // TODO: for some reason I have to determine, the following test fail! CK
+  char buf[128]{};
+  sprintf(buf, "%lld", std::numeric_limits<long long>::max());
+  ASSERT_THROW(minijson::detail::parse_long(buf), minijson::detail::number_parse_error);
+#endif
+
   ASSERT_EQ(42, errno);
 }
 
@@ -372,22 +391,22 @@ TEST(minijson_reader_detail, parse_double) {
   ASSERT_DOUBLE_EQ(42.42E+01, minijson::detail::parse_double("42.42E+01"));
   ASSERT_DOUBLE_EQ(42.42E-01, minijson::detail::parse_double("42.42E-01"));
 
-  char buf[2048];
+  char buf[1024]{};
   sprintf(buf, "%lf", std::numeric_limits<double>::max());
 
   std::string str(std::to_string(std::numeric_limits<double>::max()));
-  // TODO 1.79769e+308 !=
+  // TODO: 1.79769e+308 !=
   // 179769313486231610000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.000000
   std::cout << std::numeric_limits<double>::max() << " == " << str << std::endl;
   ASSERT_DOUBLE_EQ(std::numeric_limits<double>::max(), minijson::detail::parse_double(buf));
 
   sprintf(buf, "%lf", -std::numeric_limits<double>::max());
   str = std::to_string(std::numeric_limits<double>::min());
-  // TODO 2.22507e-308 != 0.000000
+  // TODO: 2.22507e-308 != 0.000000
   std::cout << std::numeric_limits<double>::min() << " == " << str << std::endl;
   ASSERT_DOUBLE_EQ(-std::numeric_limits<double>::max(), minijson::detail::parse_double(buf));
 
-#if 0  // TODO for some reason I have to determine, the following two tests fail
+#if 0  // TODO: for some reason I have to determine, the following two tests fail
     sprintf(buf, "%lf", std::numeric_limits<double>::min());
     ASSERT_DOUBLE_EQ(std::numeric_limits<double>::min(), minijson::detail::parse_double(buf));
 
@@ -745,7 +764,7 @@ TEST(minijson_reader_detail, parse_unquoted_value_double) {
   minijson::detail::read_unquoted_value(buffer_context);
 
   const minijson::value value = minijson::detail::parse_unquoted_value(buffer_context);
-  ASSERT_EQ(minijson::Number, value.type());
+  ASSERT_EQ(minijson::Double, value.type());  // FIXME: minijson::Double! CK
   ASSERT_STREQ("42.0e+76", value.as_string());
   ASSERT_EQ(0, value.as_long());
   ASSERT_FALSE(value.as_bool());
@@ -849,8 +868,7 @@ TEST(minijson_reader_detail, read_value_unquoted) {
 
   ASSERT_EQ(',', ending_char);
 
-  // boolean false, null, integer and double cases have been already tested with
-  // parse_unquoted_value
+  // boolean false, null, integer and double cases have been already tested with parse_unquoted_value
 }
 
 TEST(minijson_reader_detail, read_value_unquoted_invalid) {
@@ -937,7 +955,7 @@ struct parse_object_multiple_fields_handler : check_on_destroy_handler {
       ASSERT_EQ(42, v.as_long());
     } else if (strcmp(n, "floating_point") == 0) {
       h[2] = 1;
-      ASSERT_EQ(minijson::Number, v.type());
+      ASSERT_EQ(minijson::Double, v.type());  // FIXME: minijson::Double! CK
       ASSERT_DOUBLE_EQ(4261826387162873618273687126387.0, v.as_double());
     } else if (strcmp(n, "boolean_true") == 0) {
       h[3] = 1;
@@ -995,9 +1013,9 @@ TEST(minijson_reader, parse_object_multiple_fields) {
 template <typename Context>
 struct parse_object_nested_handler : check_on_destroy_handler {
   std::bitset<2> h;
-  Context& context;
+  Context& ctx;
 
-  explicit parse_object_nested_handler(Context& context) : context(context) {}
+  explicit parse_object_nested_handler(Context& context) : ctx(context) {}
 
   ~parse_object_nested_handler() {
     if (check_on_destroy) { EXPECT_TRUE(h.all()); }
@@ -1007,10 +1025,10 @@ struct parse_object_nested_handler : check_on_destroy_handler {
     if (strcmp(n, "") == 0) {
       h[0] = 1;
       ASSERT_EQ(minijson::Object, v.type());
-      minijson::parse_object(context, nested1_handler(context));
+      minijson::parse_object(ctx, nested1_handler(ctx));
     } else if (strcmp(n, "val2") == 0) {
       h[1] = 1;
-      ASSERT_EQ(minijson::Number, v.type());
+      ASSERT_EQ(minijson::Double, v.type());  // FIXME: minijson::Double! CK
       ASSERT_DOUBLE_EQ(42.0, v.as_double());
     } else {
       FAIL();
@@ -1018,10 +1036,10 @@ struct parse_object_nested_handler : check_on_destroy_handler {
   }
 
   struct nested1_handler : check_on_destroy_handler {
-    Context& context;
+    Context& ctx;
     bool read_field;
 
-    explicit nested1_handler(Context& context) : context(context), read_field(false) {}
+    explicit nested1_handler(Context& context) : ctx(context), read_field(false) {}
 
     ~nested1_handler() {
       if (check_on_destroy) { EXPECT_TRUE(read_field); }
@@ -1031,14 +1049,14 @@ struct parse_object_nested_handler : check_on_destroy_handler {
       read_field = true;
       ASSERT_STREQ("nested2", n);
       ASSERT_EQ(minijson::Object, v.type());
-      minijson::parse_object(context, nested2_handler(context));
+      minijson::parse_object(ctx, nested2_handler(ctx));
     }
 
     struct nested2_handler : check_on_destroy_handler {
       std::bitset<2> h;
-      Context& context;
+      Context& ctx;
 
-      explicit nested2_handler(Context& context) : context(context) {}
+      explicit nested2_handler(Context& context) : ctx(context) {}
 
       ~nested2_handler() {
         if (check_on_destroy) { EXPECT_TRUE(h.all()); }
@@ -1052,7 +1070,7 @@ struct parse_object_nested_handler : check_on_destroy_handler {
         } else if (strcmp(n, "nested3") == 0) {
           h[1] = 1;
           ASSERT_EQ(minijson::Array, v.type());
-          minijson::parse_array(context, parse_array_empty_handler);
+          minijson::parse_array(ctx, parse_array_empty_handler);
         } else {
           FAIL();
         }
@@ -1157,7 +1175,7 @@ struct parse_array_multiple_elems_handler : check_on_destroy_handler {
         ASSERT_EQ(42, v.as_long());
         break;
       case 2:
-        ASSERT_EQ(minijson::Number, v.type());
+        ASSERT_EQ(minijson::Double, v.type());  // FIXME: minijson::Double! CK
         ASSERT_DOUBLE_EQ(42.0, v.as_double());
         break;
       case 3:
@@ -1200,9 +1218,9 @@ TEST(minijson_reader, parse_array_multiple_elems) {
 template <typename Context>
 struct parse_array_nested_handler : check_on_destroy_handler {
   size_t counter;
-  Context& context;
+  Context& ctx;
 
-  explicit parse_array_nested_handler(Context& context) : counter(0), context(context) {}
+  explicit parse_array_nested_handler(Context& context) : counter(0), ctx(context) {}
 
   ~parse_array_nested_handler() {
     if (check_on_destroy) { EXPECT_EQ(2U, counter); }
@@ -1212,10 +1230,10 @@ struct parse_array_nested_handler : check_on_destroy_handler {
     switch (counter++) {
       case 0:
         ASSERT_EQ(minijson::Array, v.type());
-        minijson::parse_array(context, nested1_handler(context));
+        minijson::parse_array(ctx, nested1_handler(ctx));
         break;
       case 1:
-        ASSERT_EQ(minijson::Number, v.type());
+        ASSERT_EQ(minijson::Double, v.type());  // FIXME: minijson::Double! CK
         ASSERT_DOUBLE_EQ(42.0, v.as_double());
         break;
       default: FAIL();
@@ -1223,10 +1241,10 @@ struct parse_array_nested_handler : check_on_destroy_handler {
   }
 
   struct nested1_handler : check_on_destroy_handler {
-    Context& context;
+    Context& ctx;
     bool read_elem;
 
-    explicit nested1_handler(Context& context) : context(context), read_elem(false) {}
+    explicit nested1_handler(Context& context) : ctx(context), read_elem(false) {}
 
     ~nested1_handler() {
       if (check_on_destroy) { EXPECT_TRUE(read_elem); }
@@ -1235,14 +1253,14 @@ struct parse_array_nested_handler : check_on_destroy_handler {
     void operator()(const minijson::value& v) {
       read_elem = true;
       ASSERT_EQ(minijson::Array, v.type());
-      minijson::parse_array(context, nested2_handler(context));
+      minijson::parse_array(ctx, nested2_handler(ctx));
     }
 
     struct nested2_handler : check_on_destroy_handler {
       size_t counter;
-      Context& context;
+      Context& ctx;
 
-      explicit nested2_handler(Context& context) : counter(0), context(context) {}
+      explicit nested2_handler(Context& context) : counter(0), ctx(context) {}
 
       ~nested2_handler() {
         if (check_on_destroy) { EXPECT_EQ(2U, counter); }
@@ -1256,7 +1274,7 @@ struct parse_array_nested_handler : check_on_destroy_handler {
             break;
           case 1:
             ASSERT_EQ(minijson::Object, v.type());
-            minijson::parse_object(context, parse_object_empty_handler);
+            minijson::parse_object(ctx, parse_object_empty_handler);
             break;
           default: FAIL();
         }
@@ -1293,17 +1311,17 @@ struct parse_dummy {
 
 template <typename Context>
 struct parse_dummy_consume {
-  Context& context;
+  Context& ctx;
 
-  explicit parse_dummy_consume(Context& context) : context(context) {}
+  explicit parse_dummy_consume(Context& context) : ctx(context) {}
 
   void operator()(const char*, minijson::value value) { operator()(value); }
 
   void operator()(minijson::value value) {
     if (value.type() == minijson::Object) {
-      minijson::parse_object(context, *this);
+      minijson::parse_object(ctx, *this);
     } else if (value.type() == minijson::Array) {
-      minijson::parse_array(context, *this);
+      minijson::parse_array(ctx, *this);
     }
   }
 };
