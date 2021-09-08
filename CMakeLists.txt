@@ -14,24 +14,24 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 project(minijson_reader LANGUAGES CXX)
 
-# ---- dependency ----
-include(cmake/CPM.cmake)
-
-CPMAddPackage(
-  NAME googletest
-  GITHUB_REPOSITORY google/googletest
-  GIT_TAG release-1.10.0
-  VERSION 1.11.0
-  OPTIONS "INSTALL_GTEST OFF" "gtest_force_shared_crt"
-)
-#XXX find_package(GTest REQUIRED)
-
 option(CMAKE_CXX_EXTENSIONS "Default value for CXX_EXTENSIONS property of targets." off)
 set(CMAKE_CXX_STANDARD_REQUIRED 17 CACHE STRING "the requiered c++ standard")
 
 # Where to put all the RUNTIME targets when built.  This variable is used to
 # initialize the RUNTIME_OUTPUT_DIRECTORY property on all the targets.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
+
+# ---- dependency ----
+#XXX find_package(GTest 1.11 REQUIRED)
+include(cmake/CPM.cmake)
+
+CPMAddPackage(
+  NAME googletest
+  GITHUB_REPOSITORY google/googletest
+  GIT_TAG release-1.11.0
+  VERSION 1.11.0
+  OPTIONS "BUILD_GMOCK OFF" "gtest_force_shared_crt"
+)
 
 add_executable(minijson_example minijson_reader.hpp minijson_example.cpp)
 set_property(TARGET minijson_example PROPERTY CXX_STANDARD ${CMAKE_CXX_STANDARD_REQUIRED})
@@ -42,7 +42,7 @@ set_property(TARGET sca_property_parser PROPERTY CXX_STANDARD ${CMAKE_CXX_STANDA
 
 add_executable(${PROJECT_NAME}_tests minijson_reader.hpp minijson_reader_tests.cpp)
 set_property(TARGET ${PROJECT_NAME}_tests PROPERTY CXX_STANDARD ${CMAKE_CXX_STANDARD_REQUIRED})
-target_link_libraries(${PROJECT_NAME}_tests gtest_main)
+target_link_libraries(${PROJECT_NAME}_tests GTest::gtest_main)
 
 # being a cross-platform target, we enforce standards conformance on MSVC
 target_compile_options(${PROJECT_NAME}_tests PUBLIC "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->")
