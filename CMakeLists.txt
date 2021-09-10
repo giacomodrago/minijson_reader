@@ -25,6 +25,10 @@ set(CMAKE_CXX_STANDARD
     CACHE STRING "The used c++ standard"
 )
 
+# Where to put all the RUNTIME targets when build. (ddl, and exe)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
 # ---- dependency ----
 include(cmake/CPM.cmake)
 
@@ -43,7 +47,8 @@ endif()
 CPMAddPackage(
   NAME minijson_writer
   GITHUB_REPOSITORY ClausKlein/minijson_writer
-  GIT_TAG e481d93251aab1e23ab197b83e3adccc99f6ca24
+  GIT_TAG 35a8e1c330fb18e268ad79e02f32c4de12339f4c
+  OPTIONS "BUILD_TESTS ${BUILD_TESTS}"
 )
 
 # ---- Create library ----
@@ -62,10 +67,6 @@ add_library(minijson::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 # ---- Create executables ----
 
 if(BUILD_TESTS)
-  # Where to put all the RUNTIME targets when built.  This variable is used to
-  # initialize the RUNTIME_OUTPUT_DIRECTORY property on all the targets.
-  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
-
   add_executable(minijson_example minijson_reader.hpp minijson_example.cpp)
   target_compile_features(minijson_example PRIVATE cxx_lambdas)
 
