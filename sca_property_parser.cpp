@@ -1,4 +1,5 @@
 #include "minijson_reader.hpp"
+#include "minijson_writer.hpp"
 
 #include <exception>
 #include <fstream>
@@ -41,10 +42,12 @@ inline constexpr bool always_false_v = false;
 
 // TODO: use minijson_writer()! CK
 //
-// Note: we print normalized (one line)
+// Note: this streams a normalized form (all at one line)! CK
 //
 std::ostream& operator<<(std::ostream& rOut, const obj_type& property) {
   TRACEFUNC;
+
+  minijson::detail::adjust_stream_settings(rOut);
 
   rOut << "{\"name\": \"" << property.name;     // NOTE: start object -> '{'
   rOut << "\", \"type\": \"" << property.type;  // NOTE: as string! CK

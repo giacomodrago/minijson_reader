@@ -938,7 +938,8 @@ inline void write_quoted_string(std::ostream& stream, const std::string_view str
       case '\t': stream << "\\t"; break;
 
       default:
-        // TODO: that may all right too OK CK!  if (std::iscntrl(c))
+        // TODO: that may also work CK! if (std::iscntrl(c))
+        // NOTE: this writes "\0" too! CK
         if ((c >= 0 && c < 32) || c == 127) {
           stream << "\\u";
           stream.flush();

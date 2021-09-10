@@ -34,11 +34,21 @@ CPMAddPackage(
   OPTIONS "BUILD_GMOCK OFF" "gtest_force_shared_crt"
 )
 
+CPMAddPackage(
+  NAME minijson_writer
+  GITHUB_REPOSITORY ClausKlein/minijson_writer
+  GIT_TAG c9553c7687e1f2151ceb0cee04fc878354f24431
+)
+
 # ---- Create library ----
 
 # Note: for header-only libraries change all PUBLIC flags to INTERFACE
 add_library(${PROJECT_NAME} INTERFACE minijson_reader.hpp)
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD ${CMAKE_CXX_STANDARD})
+target_include_directories(
+  ${PROJECT_NAME} BEFORE INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
+                                   $<INSTALL_INTERFACE:include>
+)
 # being a cross-platform target, we enforce standards conformance on MSVC
 target_compile_options(${PROJECT_NAME} INTERFACE "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->")
 
@@ -51,6 +61,7 @@ target_compile_features(minijson_example PRIVATE cxx_lambdas)
 
 add_executable(sca_property_parser minijson_reader.hpp sca_property_parser.cpp)
 target_compile_features(minijson_example PRIVATE cxx_std_17)
+target_link_libraries(sca_property_parser minijson::minijson_writer)
 
 add_executable(${PROJECT_NAME}_tests minijson_reader.hpp minijson_reader_tests.cpp)
 target_link_libraries(${PROJECT_NAME}_tests GTest::gtest_main)
