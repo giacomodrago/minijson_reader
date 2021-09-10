@@ -74,16 +74,16 @@ int main() {
           [&] {
             //=================================
             parse_object(ctx,
-                [&](const char* k, value v)  // recursion
+                [&](const char* k1, value v1)  // recursion
                 {
-                  dispatch(k) << "field1" >> [&] { obj.nested.field1 = v.as_double(); } << "field2" >>
-                      [&] { obj.nested.field2 = v.as_bool(); } << any >> [&] { ignore(ctx); };  // ANY other OBJECT
+                  dispatch(k1) << "field1" >> [&] { obj.nested.field1 = v1.as_double(); } << "field2" >>
+                      [&] { obj.nested.field2 = v1.as_bool(); } << any >> [&] { ignore(ctx); };  // ANY other OBJECT
                 });
             //=================================
           } << "array" >>
           [&] {
             //=================================
-            parse_array(ctx, [&](value v) { obj.array.push_back(v.as_long()); });
+            parse_array(ctx, [&](value v1) { obj.array.push_back(v1.as_long()); });
             //=================================
           } << any >>
           [&] { ignore(ctx); };  // ANY other OBJECT

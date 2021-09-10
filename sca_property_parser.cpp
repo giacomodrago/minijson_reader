@@ -24,7 +24,7 @@ typedef std::variant<bool, long long, double, std::string> value_type;
 //
 struct obj_type {
   obj_type() = default;
-  obj_type(std::string _name) : name(std::move(_name)){};
+  explicit obj_type(std::string _name) : name(std::move(_name)){};
 
   std::string name;
   std::string type;  // TODO: create enum for simple, sequence, struct, and structsequence SCA property types! CK
@@ -145,7 +145,7 @@ template <typename Context>
 struct parse_object_nested_handler;
 
 template <typename Context>
-struct parse_array_nested_handler {
+struct parse_array_nested_handler {  // NOLINT(hicpp-special-member-functions)
   Context& ctx;
   size_t counter;
   obj_type& myobj;
@@ -188,7 +188,7 @@ struct parse_array_nested_handler {
 };
 
 template <typename Context>
-struct parse_object_nested_handler {
+struct parse_object_nested_handler {  // NOLINT(hicpp-special-member-functions)
   Context& ctx;
   size_t counter;
   obj_type& myobj;

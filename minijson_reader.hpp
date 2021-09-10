@@ -144,7 +144,7 @@ class istream_context final : public detail::context_base {
 
   size_t read_offset() const { return m_read_offset; }
 
-  void new_write_buffer() { m_write_buffers.push_back(std::vector<char>()); }
+  void new_write_buffer() { m_write_buffers.emplace_back(std::vector<char>()); }
 
   void write(char c) { m_write_buffers.back().push_back(c); }
 
@@ -190,7 +190,7 @@ class parse_error : public std::exception {
 
   error_reason reason() const { return m_reason; }
 
-  const char* what() const throw() {
+  const char* what() const noexcept override {
     switch (m_reason) {
       case UNKNOWN: return "Unknown parse error";
       case EXPECTED_OPENING_QUOTE: return "Expected opening quote";
@@ -214,7 +214,7 @@ class parse_error : public std::exception {
 namespace detail {
 
 struct utf8_char {
-  uint8_t bytes[4];
+  uint8_t bytes[4]{};
 
   utf8_char() {
     // wanted use value-initialization, but couldn't because of a weird VS2013 warning
@@ -247,7 +247,7 @@ inline uint32_t utf16_to_utf32(uint16_t high, uint16_t low) {
     if (low != 0) {
       // since the high code unit is not a surrogate, the low code unit should
       // be zero
-      throw encoding_error();
+      throw encoding_error();  // NOLINT(hicpp-exception-baseclass)
     }
 
     result = high;
@@ -255,12 +255,12 @@ inline uint32_t utf16_to_utf32(uint16_t high, uint16_t low) {
     if (high > 0xDBFF)  // we already know high >= 0xD800
     {
       // the high surrogate is not within the expected range
-      throw encoding_error();
+      throw encoding_error();  // NOLINT(hicpp-exception-baseclass)
     }
 
     if (low < 0xDC00 || low > 0xDFFF) {
       // the low surrogate is not within the expected range
-      throw encoding_error();
+      throw encoding_error();  // NOLINT(hicpp-exception-baseclass)
     }
 
     high -= 0xD800;
@@ -290,7 +290,7 @@ inline utf8_char utf32_to_utf8(uint32_t utf32_char) {
     result[3] = 0x80 | ((utf32_char & (0x3F)));
   } else {
     // invalid code unit
-    throw encoding_error();
+    throw encoding_error();  // NOLINT(hicpp-exception-baseclass)
   }
 
   return result;
@@ -303,7 +303,9 @@ struct number_parse_error {};  // TODO: should be a std::exception! CK
 
 inline long parse_long(const char* str, int base = 10) {
   // we don't accept empty strings or strings with leading spaces
-  if ((str == NULL) || (*str == 0) || isspace(str[0])) { throw number_parse_error(); }
+  if ((str == NULL) || (*str == 0) || isspace(str[0])) {
+    throw number_parse_error();  // NOLINT(hicpp-exception-baseclass)
+  }
 
 #  if 1                     // NOTE: Needed, but this use of errno is not reentrant! CK
   int saved_errno = errno;  // save errno
@@ -317,7 +319,7 @@ inline long parse_long(const char* str, int base = 10) {
   if ((*endptr != 0) ||                                                             // we didn't consume the whole string
       ((saved_errno == ERANGE) && ((result == LONG_MIN) || (result == LONG_MAX))))  // overflow
   {
-    throw number_parse_error();
+    throw number_parse_error();  // NOLINT(hicpp-exception-baseclass)
   }
 #  else
   auto pos =
@@ -338,7 +340,9 @@ inline long parse_long(const char* str, int base = 10) {
 
 inline long long parse_longlong(const char* str, int base = 10) {
   // we don't accept empty strings or strings with leading spaces
-  if ((str == NULL) || (*str == 0) || isspace(str[0])) { throw number_parse_error(); }
+  if ((str == NULL) || (*str == 0) || isspace(str[0])) {
+    throw number_parse_error();  // NOLINT(hicpp-exception-baseclass)
+  }
 
 #  if 1                     // NOTE: Needed, but this use of errno is not reentrant! CK
   int saved_errno = errno;  // save errno
@@ -352,7 +356,7 @@ inline long long parse_longlong(const char* str, int base = 10) {
   if ((*endptr != 0) ||                                                               // we didn't consume the whole string
       ((saved_errno == ERANGE) && ((result == LLONG_MIN) || (result == LLONG_MAX))))  // overflow
   {
-    throw number_parse_error();
+    throw number_parse_error();  // NOLINT(hicpp-exception-baseclass)
   }
 #  else
   auto pos =
@@ -374,13 +378,13 @@ inline long long parse_longlong(const char* str, int base = 10) {
 inline double parse_double(const char* str) {
   if ((str == NULL) || (*str == 0))  // we don't accept empty strings
   {
-    throw number_parse_error();
+    throw number_parse_error();  // NOLINT(hicpp-exception-baseclass)
   }
 
   // we perform this check to reject hex numbers (supported in C++11) and string with leading spaces
   for (const char* c = str; *c != 0; c++) {
     if (!(isdigit(*c) || (*c == '+') || (*c == '-') || (*c == '.') || (*c == 'e') || (*c == 'E'))) {
-      throw number_parse_error();
+      throw number_parse_error();  // NOLINT(hicpp-exception-baseclass)
     }
   }
 
@@ -396,7 +400,7 @@ inline double parse_double(const char* str) {
   if ((*endptr != 0) ||         // we didn't consume the whole string
       (saved_errno == ERANGE))  // underflow or overflow
   {
-    throw number_parse_error();
+    throw number_parse_error();  // NOLINT(hicpp-exception-baseclass)
   }
 #  else
   double result{};
@@ -412,7 +416,9 @@ static const size_t UTF16_ESCAPE_SEQ_LENGTH = 4;
 
 inline uint16_t parse_utf16_escape_sequence(const char* seq) {
   for (size_t i = 0; i < UTF16_ESCAPE_SEQ_LENGTH; i++) {
-    if (!isxdigit(seq[i])) { throw encoding_error(); }
+    if (!isxdigit(seq[i])) {
+      throw encoding_error();  // NOLINT(hicpp-exception-baseclass)
+    }
   }
 
   return static_cast<uint16_t>(parse_long(seq, 16));
@@ -883,9 +889,9 @@ class ignore {
  public:
   explicit ignore(Context& context) : m_context(context) {}
 
-  void operator()(const char*, value) const { operator()(); }
+  void operator()(const char* /*unused*/, value /*unused*/) const { operator()(); }
 
-  void operator()(value) const { operator()(); }
+  void operator()(value /*unused*/) const { operator()(); }
 
   void operator()() const {
     switch (m_context.nested_status()) {
@@ -915,7 +921,7 @@ void ignore(Context& context) {
 //
 // TODO write ostream operator ...
 //
-void write_quoted_string(std::ostream& stream, const std::string_view str, const char* endl = "") {
+inline void write_quoted_string(std::ostream& stream, const std::string_view str, const char* endl = "") {
   stream << std::hex << std::right << std::setfill('0');
   stream << '"';
 
