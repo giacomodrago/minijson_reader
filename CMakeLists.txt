@@ -47,15 +47,14 @@ endif()
 CPMAddPackage(
   NAME minijson_writer
   GITHUB_REPOSITORY ClausKlein/minijson_writer
-  GIT_TAG 35a8e1c330fb18e268ad79e02f32c4de12339f4c
+  GIT_TAG bf2c8d51f9aded76300bf6dc0897b11af9702ceb
   OPTIONS "BUILD_TESTS ${BUILD_TESTS}"
 )
 
 # ---- Create library ----
 
 # Note: for header-only libraries change all PUBLIC flags to INTERFACE
-add_library(${PROJECT_NAME} INTERFACE minijson_reader.hpp)
-set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD ${CMAKE_CXX_STANDARD})
+add_library(${PROJECT_NAME} INTERFACE)
 target_include_directories(
   ${PROJECT_NAME} BEFORE INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}> $<INSTALL_INTERFACE:include>
 )
