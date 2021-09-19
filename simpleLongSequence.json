@@ -1,6 +1,6 @@
 {
    "name": "list",
-   "type": "longsequence",
+   "type": "eLongSequence",
    "value": [
       -9223372036854775808,
       -2147483648,

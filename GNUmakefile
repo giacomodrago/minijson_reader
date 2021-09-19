@@ -39,10 +39,13 @@ clean:
 	find build/CMakeFiles -type f -name '*.cpp.o' -delete
 
 distclean: clean
-	rm -rf build *.d *.orig *~
+	rm -rf build *.d *.orig *~ .init
 
-build:
+.init: .requirement.txt
 	pip3 install -r .requirement.txt
+	touch $@
+
+build: .init
 	cmake -B build -S . -G Ninja -D CMAKE_BUILD_TYPE=Debug
 	ninja -C build
 

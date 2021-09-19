@@ -51,6 +51,12 @@ CPMAddPackage(
   OPTIONS "BUILD_TESTS ${BUILD_TESTS}"
 )
 
+CPMAddPackage(
+  NAME magic_enum
+  GITHUB_REPOSITORY ClausKlein/magic_enum
+  GIT_TAG 35952ac46a144e67d58613b4335345027cb2d5ce
+)
+
 # ---- Create library ----
 
 # Note: for header-only libraries change all PUBLIC flags to INTERFACE
@@ -71,7 +77,7 @@ if(BUILD_TESTS)
 
   add_executable(sca_property_parser minijson_reader.hpp sca_property_parser.cpp)
   target_compile_features(minijson_example PRIVATE cxx_std_17)
-  target_link_libraries(sca_property_parser minijson::minijson_writer)
+  target_link_libraries(sca_property_parser minijson::minijson_writer magic_enum::magic_enum)
 
   add_executable(${PROJECT_NAME}_tests minijson_reader.hpp minijson_reader_tests.cpp)
   target_link_libraries(${PROJECT_NAME}_tests GTest::gtest_main)
@@ -156,5 +162,5 @@ endif()
 
 option(MINIJSON_INSTALL "Generate the install target" ${MINIJSON_MASTER_PROJECT})
 if(MINIJSON_INSTALL)
-  install(FILES minijson_reader.hpp sca_property_parser DESTINATION include)
+  install(FILES minijson_reader.hpp DESTINATION include)
 endif()

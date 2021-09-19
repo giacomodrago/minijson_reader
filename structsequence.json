@@ -1,38 +1,38 @@
 {
    "name": "structSequenceProperty",
-   "type": "structsequence",
+   "type": "eStructSequence",
    "value": [
       [
          {
             "name": "entry1",
-            "type": "bool",
+            "type": "eBool",
             "value": true
          },
          {
             "name": "entry2",
-            "type": "long",
+            "type": "eLong",
             "value": 42
          },
          {
             "name": "entry3",
-            "type": "string",
+            "type": "eString",
             "value": "\tUnicodeString:\"@\u20ac\u00b2\u00b3\u00df\u00c4\u00d6\u00dc\u00a7$%@#\"\r\n"
          }
       ],
       [
          {
             "name": "entry1",
-            "type": "bool",
+            "type": "eBool",
             "value": false
          },
          {
             "name": "entry2",
-            "type": "long",
+            "type": "eLong",
             "value": 123
          },
          {
             "name": "entry3",
-            "type": "string",
+            "type": "eString",
             "value": "\tTest\t String\t with\t WS\r\n\""
          }
       ]

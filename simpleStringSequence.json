@@ -1,6 +1,6 @@
 {
    "name": "list",
-   "type": "stringsequence",
+   "type": "eStringSequence",
    "value": [
       "Merkur",
       "Venus",

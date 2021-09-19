@@ -1,6 +1,6 @@
 {
    "name": "list",
-   "type": "doublesequence",
+   "type": "eDoubleSequence",
    "value": [
       -1.175494350822287E-38,
       -2.731500000000000E+02,

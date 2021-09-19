@@ -1,5 +1,5 @@
 {
    "name": "property",
-   "type": "double",
+   "type": "eDouble",
    "value": 3.141592653589793
 }

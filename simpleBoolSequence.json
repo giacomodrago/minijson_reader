@@ -1,6 +1,6 @@
 {
    "name": "list",
-   "type": "boolsequence",
+   "type": "eBoolSequence",
    "value": [
       true,
       false,
