@@ -12,12 +12,17 @@
 cmake_minimum_required(VERSION 3.13...3.21)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-project(minijson_reader LANGUAGES CXX)
+project(
+  minijson_reader
+  VERSION 0.9.0
+  LANGUAGES CXX
+)
 
 if(PROJECT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
   set(MINIJSON_MASTER_PROJECT YES)
 endif()
 
+option(MINIJSON_INSTALL "Generate the install target" ${MINIJSON_MASTER_PROJECT})
 option(CMAKE_CXX_EXTENSIONS "Default value for CXX_EXTENSIONS property of targets." NO)
 option(CMAKE_CXX_STANDARD_REQUIRED "The c++ standard is requrired" YES)
 set(CMAKE_CXX_STANDARD
@@ -34,7 +39,6 @@ include(cmake/CPM.cmake)
 
 option(BUILD_TESTS "Build tests" ${MINIJSON_MASTER_PROJECT})
 if(BUILD_TESTS)
-  #XXX find_package(GTest 1.11 REQUIRED)
   CPMAddPackage(
     NAME googletest
     GITHUB_REPOSITORY google/googletest
@@ -47,8 +51,8 @@ endif()
 CPMAddPackage(
   NAME minijson_writer
   GITHUB_REPOSITORY ClausKlein/minijson_writer
-  GIT_TAG bf2c8d51f9aded76300bf6dc0897b11af9702ceb
-  OPTIONS "BUILD_TESTS ${BUILD_TESTS}"
+  GIT_TAG v0.9.0
+  OPTIONS "BUILD_TESTS ${BUILD_TESTS}" "MINIJSON_INSTALL ${MINIJSON_INSTALL}"
 )
 
 CPMAddPackage(
@@ -160,7 +164,7 @@ endif()
 
 # ---- install ----
 
-option(MINIJSON_INSTALL "Generate the install target" ${MINIJSON_MASTER_PROJECT})
 if(MINIJSON_INSTALL)
+  # TODO: export cmake config packages too! CK
   install(FILES minijson_reader.hpp DESTINATION include)
 endif()

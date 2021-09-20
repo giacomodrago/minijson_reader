@@ -36,10 +36,10 @@ test: build
 
 clean:
 	${RM} sca_property_parser *.exe *.o
-	find build/CMakeFiles -type f -name '*.cpp.o' -delete
+	-find build/CMakeFiles -type f -name '*.cpp.o' -delete
 
 distclean: clean
-	rm -rf build *.d *.orig *~ .init
+	${RM} -r build build-* *.d *.orig *~ .*~ .init
 
 .init: .requirement.txt
 	pip3 install -r .requirement.txt
@@ -58,5 +58,6 @@ check: build
 
 format:
 	clang-format -i *.hpp *.cpp
+	cmake-format -i CMakeLists.txt cmake/*.cmake
 
 -include sca_property_parser.d
