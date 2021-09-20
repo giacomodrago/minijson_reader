@@ -1,4 +1,7 @@
-minijson_example
-minijson_parser
-build
-tmp
+*.o
+*.d
+/.init
+/sca_property_parser
+stage/
+build/
+build-*/
