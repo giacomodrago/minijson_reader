@@ -120,45 +120,41 @@ if(BUILD_TESTS)
   add_test(NAME all_tests COMMAND ${PROJECT_NAME}_tests)
   add_test(NAME minijson_example COMMAND minijson_example)
 
-  if(MSVC)
-    add_test(
-      NAME sca_simpleproperty_property
-      COMMAND sca_property_parser simpleproperty.json
-      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-    add_test(
-      NAME sca_structproperty_property
-      COMMAND sca_property_parser structproperty.json
-      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-    add_test(
-      NAME sca_structsequence_property
-      COMMAND sca_property_parser structsequence.json
-      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-    add_test(
-      NAME simpleBoolSequence
-      COMMAND sca_property_parser simpleBoolSequence.json
-      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-    add_test(
-      NAME simpleDoubleSequence
-      COMMAND sca_property_parser simpleDoubleSequence.json
-      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-    add_test(
-      NAME simpleLongSequence
-      COMMAND sca_property_parser simpleLongSequence.json
-      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-    add_test(
-      NAME simpleStringSequence
-      COMMAND sca_property_parser simpleStringSequence.json
-      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-  else()
-    add_test(NAME sca_property_parser COMMAND make -C ${CMAKE_CURRENT_SOURCE_DIR} test)
-  endif()
+  add_test(
+    NAME sca_simpleproperty_property
+    COMMAND sca_property_parser simpleproperty.json
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  add_test(
+    NAME sca_structproperty_property
+    COMMAND sca_property_parser structproperty.json
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  add_test(
+    NAME sca_structsequence_property
+    COMMAND sca_property_parser structsequence.json
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  add_test(
+    NAME simpleBoolSequence
+    COMMAND sca_property_parser simpleBoolSequence.json
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  add_test(
+    NAME simpleDoubleSequence
+    COMMAND sca_property_parser simpleDoubleSequence.json
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  add_test(
+    NAME simpleLongSequence
+    COMMAND sca_property_parser simpleLongSequence.json
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  add_test(
+    NAME simpleStringSequence
+    COMMAND sca_property_parser simpleStringSequence.json
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  )
 
 endif()
 
