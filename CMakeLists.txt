@@ -9,7 +9,7 @@
 #   $ ctest
 #   $ make install
 
-cmake_minimum_required(VERSION 3.13...3.21)
+cmake_minimum_required(VERSION 3.14...3.21)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 project(
@@ -26,7 +26,7 @@ option(MINIJSON_INSTALL "Generate the install target" ${MINIJSON_MASTER_PROJECT}
 option(CMAKE_CXX_EXTENSIONS "Default value for CXX_EXTENSIONS property of targets." NO)
 option(CMAKE_CXX_STANDARD_REQUIRED "The c++ standard is requrired" YES)
 set(CMAKE_CXX_STANDARD
-    17
+    20
     CACHE STRING "The used c++ standard"
 )
 
@@ -61,6 +61,24 @@ CPMAddPackage(
   GIT_TAG 35952ac46a144e67d58613b4335345027cb2d5ce
 )
 
+CPMAddPackage(
+  NAME pfr
+  GITHUB_REPOSITORY boostorg/pfr
+  GIT_TAG boost-1.77.0
+)
+
+CPMAddPackage(
+  NAME describe
+  GITHUB_REPOSITORY boostorg/describe
+  GIT_TAG boost-1.77.0
+)
+
+CPMAddPackage(
+  NAME mp11
+  GITHUB_REPOSITORY boostorg/mp11
+  GIT_TAG boost-1.77.0
+)
+
 # ---- Create library ----
 
 # Note: for header-only libraries change all PUBLIC flags to INTERFACE
@@ -78,10 +96,11 @@ add_library(minijson::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 if(BUILD_TESTS)
   add_executable(minijson_example minijson_reader.hpp minijson_example.cpp)
   target_compile_features(minijson_example PRIVATE cxx_lambdas)
+  # target_link_libraries(minijson_example Boost::pfr)
 
   add_executable(sca_property_parser minijson_reader.hpp sca_property_parser.cpp)
   target_compile_features(minijson_example PRIVATE cxx_std_17)
-  target_link_libraries(sca_property_parser minijson::minijson_writer magic_enum::magic_enum)
+  target_link_libraries(sca_property_parser minijson::minijson_writer magic_enum::magic_enum Boost::pfr)
 
   add_executable(${PROJECT_NAME}_tests minijson_reader.hpp minijson_reader_tests.cpp)
   target_link_libraries(${PROJECT_NAME}_tests GTest::gtest_main)
@@ -156,6 +175,22 @@ if(BUILD_TESTS)
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   )
 
+endif()
+
+# ---- example using boost describe ----
+
+find_package(Boost 1.76 CONFIG COMPONENTS json)
+#FIXME: CPMAddPackage("gh:Orphis/boost-cmake#7f97a08b64bd5d2e53e932ddf80c40544cf45edf@1.77.0")
+
+if(Boost_FOUND)
+  add_executable(json_rpc json_rpc.cpp)
+  target_link_libraries(json_rpc Boost::headers Boost::describe Boost::pfr Boost::json)
+
+  add_executable(value_to value_to.cpp)
+  target_link_libraries(value_to Boost::headers Boost::describe Boost::pfr Boost::json)
+
+  add_executable(value_from value_from.cpp)
+  target_link_libraries(value_from Boost::headers Boost::describe Boost::pfr Boost::json)
 endif()
 
 # ---- install ----

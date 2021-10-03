@@ -1,7 +1,19 @@
 #include "minijson_reader.hpp"
 #include "minijson_writer.hpp"
 
+#include <boost/pfr.hpp>
 #include <magic_enum.hpp>
+
+struct my_struct {  // no ostream operator defined!
+  int i;
+  char c;
+  double d;
+};
+
+void test_pfr() {
+  my_struct s{100, 'H', 3.141593};
+  std::cerr << "my_struct has " << boost::pfr::tuple_size<my_struct>::value << " fields: " << boost::pfr::io(s) << std::endl;
+}
 
 #include <exception>
 #include <fstream>
@@ -301,6 +313,10 @@ int main(int argc, char* argv[]) {
     }
 
     std::cout << obj << std::endl;
+
+    test_pfr();
+    // FIXME std::cerr << "obj_type has " << boost::pfr::tuple_size<obj_type>::value << " fields: " << boost::pfr::io(obj)
+    // << "\n";
   } else {
     std::cerr << *argv << " filename [, ...]" << std::endl;
     return -1;

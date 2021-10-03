@@ -8,9 +8,9 @@ MAKEFLAGS+= --warn-undefined-variables  # Warn when an undefined variable is ref
 
 # Project config
 ### export CXX:=g++-11
-## export CXX:=clang++
+### export CXX:=clang++
 
-CXXFLAGS+=-std=c++17 -Wall -Wextra -Wshadow -Werror
+CXXFLAGS+=-std=c++20 -Wall -Wextra -Wshadow -Werror
 CPPFLAGS+=-MMD #XXX -DVERBOSE
 TARGET_ARCH:=
 LDFLAGS:=
