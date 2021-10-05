@@ -13,6 +13,7 @@
 #  include <istream>
 #  include <list>
 #  include <string>
+#  include <string_view>
 #  include <utility>
 #  include <vector>
 
@@ -34,7 +35,7 @@ class noncopyable {
   noncopyable& operator=(const noncopyable&);
 
  public:
-  noncopyable() {}
+  noncopyable() = default;
 
 };  // class noncopyable
 
@@ -80,7 +81,7 @@ class buffer_context_base : public context_base {
         m_length(length),
         m_read_offset(0),
         m_write_offset(0),
-        m_current_write_buffer(NULL) {
+        m_current_write_buffer(nullptr) {
     new_write_buffer();
   }
 
@@ -150,7 +151,10 @@ class istream_context final : public detail::context_base {
 
   // This method to retrieve the address of the write buffer MUST be called
   // AFTER all the calls to write() for the current write buffer have been performed
-  const char* write_buffer() const { return !m_write_buffers.back().empty() ? &m_write_buffers.back()[0] : NULL; }
+  const std::string_view write_buffer() const {
+    // NOTE: without \0! CK
+    return std::string_view(m_write_buffers.back().data(), m_write_buffers.back().size() - 1);
+  }
 };  // class istream_context
 
 class parse_error : public std::exception {
@@ -303,7 +307,7 @@ struct number_parse_error {};  // TODO: should be a std::exception! CK
 
 inline long parse_long(const char* str, int base = 10) {
   // we don't accept empty strings or strings with leading spaces
-  if ((str == NULL) || (*str == 0) || isspace(str[0])) {
+  if ((str == nullptr) || (*str == 0) || isspace(str[0])) {
     throw number_parse_error();  // NOLINT(hicpp-exception-baseclass)
   }
 
@@ -311,7 +315,7 @@ inline long parse_long(const char* str, int base = 10) {
   int saved_errno = errno;  // save errno
   errno = 0;                // reset errno
 
-  char* endptr;
+  char* endptr;  // NOLINT(hicpp-vararg)
   long result = std::strtol(str, &endptr, base);
 
   std::swap(saved_errno, errno);  // restore errno
@@ -338,9 +342,9 @@ inline long parse_long(const char* str, int base = 10) {
   return result;
 }
 
-inline long long parse_longlong(const char* str, int base = 10) {
+inline long long parse_longlong(const std::string& str, int base = 10) {
   // we don't accept empty strings or strings with leading spaces
-  if ((str == NULL) || (*str == 0) || isspace(str[0])) {
+  if (str.empty() || isspace(str[0])) {
     throw number_parse_error();  // NOLINT(hicpp-exception-baseclass)
   }
 
@@ -348,8 +352,8 @@ inline long long parse_longlong(const char* str, int base = 10) {
   int saved_errno = errno;  // save errno
   errno = 0;                // reset errno
 
-  char* endptr;
-  long long result = std::strtoll(str, &endptr, base);
+  char* endptr;  // NOLINT(hicpp-vararg)
+  long long result = std::strtoll(str.c_str(), &endptr, base);
 
   std::swap(saved_errno, errno);  // restore errno
 
@@ -375,15 +379,15 @@ inline long long parse_longlong(const char* str, int base = 10) {
   return result;
 }
 
-inline double parse_double(const char* str) {
-  if ((str == NULL) || (*str == 0))  // we don't accept empty strings
+inline double parse_double(const std::string& str) {
+  if (str.empty())  // we don't accept empty strings
   {
     throw number_parse_error();  // NOLINT(hicpp-exception-baseclass)
   }
 
   // we perform this check to reject hex numbers (supported in C++11) and string with leading spaces
-  for (const char* c = str; *c != 0; c++) {
-    if (!(isdigit(*c) || (*c == '+') || (*c == '-') || (*c == '.') || (*c == 'e') || (*c == 'E'))) {
+  for (const char c : str) {
+    if (!(isdigit(c) || (c == '+') || (c == '-') || (c == '.') || (c == 'e') || (c == 'E'))) {
       throw number_parse_error();  // NOLINT(hicpp-exception-baseclass)
     }
   }
@@ -392,8 +396,8 @@ inline double parse_double(const char* str) {
   int saved_errno = errno;  // save errno
   errno = 0;                // reset errno
 
-  char* endptr;
-  const double result = std::strtod(str, &endptr);
+  char* endptr;  // NOLINT(hicpp-vararg)
+  const double result = std::strtod(str.c_str(), &endptr);
 
   std::swap(saved_errno, errno);  // restore errno
 
@@ -560,17 +564,20 @@ enum value_type { String, Number, Boolean, Object, Array, Null, Double };
 class value final {
  private:
   value_type m_type;
-  const char* m_buffer;
+  std::string m_buffer;
   long long m_long_value;
   double m_double_value;
 
  public:
-  explicit value(value_type type = Null, const char* buffer = "", long long long_value = 0, double double_value = 0.0)
+  explicit value(value_type type = Null,
+      const std::string_view buffer = "",
+      long long long_value = 0,
+      double double_value = 0.0)
       : m_type(type), m_buffer(buffer), m_long_value(long_value), m_double_value(double_value) {}
 
   value_type type() const { return m_type; }
 
-  const char* as_string() const { return m_buffer; }
+  const std::string& as_string() const { return m_buffer; }
 
   int32_t as_long() const { return static_cast<int32_t>(m_long_value); }
 
@@ -585,13 +592,13 @@ namespace detail {
 
 template <typename Context>
 value parse_unquoted_value(const Context& context) {
-  const char* const buffer = context.write_buffer();
+  std::string buffer(context.write_buffer());
 
-  if (strcmp(buffer, "true") == 0) {
+  if (buffer == "true") {
     return value(Boolean, buffer, 1, 1.0);
-  } else if (strcmp(buffer, "false") == 0) {
+  } else if (buffer == "false") {
     return value(Boolean, buffer, 0, 0.0);
-  } else if (strcmp(buffer, "null") == 0) {
+  } else if (buffer == "null") {
     return value(Null, buffer, 0, 0.0);
   } else {
     long long long_value = 0;
@@ -653,7 +660,7 @@ void parse_init_helper(const Context& context, char& c, bool& must_read) {
 template <typename Context>
 value parse_value_helper(Context& context, char& c, bool& must_read) {
   const std::pair<value, char> read_value_result = detail::read_value(context, c);
-  const value v = read_value_result.first;
+  value v = read_value_result.first;
 
   if (v.type() == Object) {
     context.begin_nested(Context::NESTED_STATUS_OBJECT);
@@ -690,7 +697,7 @@ void parse_object(Context& context, Handler handler) {
     END
   } state = OPENING_BRACKET;
 
-  const char* field_name = "";
+  std::string field_name;
 
   while (state != END) {
     if (context.nesting_level() != nesting_level) {
@@ -733,7 +740,8 @@ void parse_object(Context& context, Handler handler) {
         break;
 
       case FIELD_VALUE:
-        handler(field_name, parse_value_helper(context, c, must_read));
+        // FIXME : change to string interface! CK
+        handler(field_name.c_str(), parse_value_helper(context, c, must_read));
         state = COMMA_OR_CLOSING_BRACKET;
         break;
 
@@ -873,7 +881,7 @@ class dispatch_rule {
 
   template <typename Handler>
   dispatch& operator>>(Handler handler) const {
-    if (!m_dispatch.m_handled && ((m_field_name == NULL) || (strcmp(m_dispatch.m_field_name, m_field_name) == 0))) {
+    if (!m_dispatch.m_handled && ((m_field_name == nullptr) || (strcmp(m_dispatch.m_field_name, m_field_name) == 0))) {
       handler();
       m_dispatch.m_handled = true;
     }
@@ -889,9 +897,9 @@ class ignore {
  public:
   explicit ignore(Context& context) : m_context(context) {}
 
-  void operator()(const char* /*unused*/, value /*unused*/) const { operator()(); }
+  void operator()(const char* /*unused*/, const value& /*unused*/) const { operator()(); }
 
-  void operator()(value /*unused*/) const { operator()(); }
+  void operator()(const value& /*unused*/) const { operator()(); }
 
   void operator()() const {
     switch (m_context.nested_status()) {
@@ -910,7 +918,7 @@ inline detail::dispatch_rule dispatch::operator<<(const char* field_name) {
 
 inline detail::dispatch_rule dispatch::operator<<(const std::string& field_name) { return operator<<(field_name.c_str()); }
 
-static const char* const any = NULL;
+static const char* const any = nullptr;
 
 template <typename Context>
 void ignore(Context& context) {

@@ -9,12 +9,12 @@
 #   $ ctest
 #   $ make install
 
-cmake_minimum_required(VERSION 3.13...3.21)
+cmake_minimum_required(VERSION 3.14...3.21)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 project(
   minijson_reader
-  VERSION 0.9.0
+  VERSION 0.9.1
   LANGUAGES CXX
 )
 
@@ -51,7 +51,7 @@ endif()
 CPMAddPackage(
   NAME minijson_writer
   GITHUB_REPOSITORY ClausKlein/minijson_writer
-  GIT_TAG v0.9.0
+  GIT_TAG v0.9.1
   OPTIONS "BUILD_TESTS ${BUILD_TESTS}" "MINIJSON_INSTALL ${MINIJSON_INSTALL}"
 )
 
@@ -59,6 +59,12 @@ CPMAddPackage(
   NAME magic_enum
   GITHUB_REPOSITORY ClausKlein/magic_enum
   GIT_TAG 35952ac46a144e67d58613b4335345027cb2d5ce
+)
+
+CPMAddPackage(
+  NAME pfr
+  GITHUB_REPOSITORY boostorg/pfr
+  GIT_TAG boost-1.77.0
 )
 
 # ---- Create library ----
@@ -81,12 +87,12 @@ if(BUILD_TESTS)
 
   add_executable(sca_property_parser minijson_reader.hpp sca_property_parser.cpp)
   target_compile_features(minijson_example PRIVATE cxx_std_17)
-  target_link_libraries(sca_property_parser minijson::minijson_writer magic_enum::magic_enum)
+  target_link_libraries(sca_property_parser minijson::minijson_writer magic_enum::magic_enum Boost::pfr)
 
-  add_executable(${PROJECT_NAME}_tests minijson_reader.hpp minijson_reader_tests.cpp)
-  target_link_libraries(${PROJECT_NAME}_tests GTest::gtest_main)
+  add_executable(test_${PROJECT_NAME} minijson_reader.hpp test/minijson_reader_tests.cpp)
+  target_link_libraries(test_${PROJECT_NAME} GTest::gtest_main)
 
-  foreach(prog minijson_example sca_property_parser ${PROJECT_NAME}_tests)
+  foreach(prog minijson_example sca_property_parser test_${PROJECT_NAME})
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC")
       target_compile_options(${prog} PRIVATE /W4 /WX /wd4244 /wd4996)
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -106,7 +112,7 @@ if(BUILD_TESTS)
   if(NOT MSVC)
     option(ENABLE_TEST_COVERAGE "Enable test coverage" YES)
     if(ENABLE_TEST_COVERAGE AND "${CMAKE_BUILD_TYPE}" STREQUAL Debug)
-      foreach(prog minijson_example sca_property_parser ${PROJECT_NAME}_tests)
+      foreach(prog minijson_example sca_property_parser test_${PROJECT_NAME})
         target_compile_options(${prog} PUBLIC -O0 -g -fprofile-arcs -ftest-coverage)
         target_link_options(${prog} PUBLIC -fprofile-arcs -ftest-coverage)
       endforeach()
@@ -117,49 +123,119 @@ if(BUILD_TESTS)
 
   enable_testing()
 
-  add_test(NAME all_tests COMMAND ${PROJECT_NAME}_tests)
+  add_test(NAME test_${PROJECT_NAME} COMMAND test_${PROJECT_NAME})
   add_test(NAME minijson_example COMMAND minijson_example)
 
-  if(MSVC)
-    add_test(
-      NAME sca_simpleproperty_property
-      COMMAND sca_property_parser simpleproperty.json
-      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-    add_test(
-      NAME sca_structproperty_property
-      COMMAND sca_property_parser structproperty.json
-      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-    add_test(
-      NAME sca_structsequence_property
-      COMMAND sca_property_parser structsequence.json
-      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-    add_test(
-      NAME simpleBoolSequence
-      COMMAND sca_property_parser simpleBoolSequence.json
-      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-    add_test(
-      NAME simpleDoubleSequence
-      COMMAND sca_property_parser simpleDoubleSequence.json
-      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-    add_test(
-      NAME simpleLongSequence
-      COMMAND sca_property_parser simpleLongSequence.json
-      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-    add_test(
-      NAME simpleStringSequence
-      COMMAND sca_property_parser simpleStringSequence.json
-      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-  else()
-    add_test(NAME sca_property_parser COMMAND make -C ${CMAKE_CURRENT_SOURCE_DIR} test)
-  endif()
+  add_test(
+    NAME sca_simpleproperty_property
+    COMMAND sca_property_parser simpleproperty.json
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  add_test(
+    NAME sca_structproperty_property
+    COMMAND sca_property_parser structproperty.json
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  add_test(
+    NAME sca_structsequence_property
+    COMMAND sca_property_parser structsequence.json
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  add_test(
+    NAME simpleBoolSequence
+    COMMAND sca_property_parser simpleBoolSequence.json
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  add_test(
+    NAME simpleDoubleSequence
+    COMMAND sca_property_parser simpleDoubleSequence.json
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  add_test(
+    NAME simpleLongSequence
+    COMMAND sca_property_parser simpleLongSequence.json
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  add_test(
+    NAME simpleStringSequence
+    COMMAND sca_property_parser simpleStringSequence.json
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  )
 
+endif()
+
+# ---- examples using boost json, describe, mp11 ----
+
+#
+# see https://www.boost.org/users/download/
+#
+CPMAddPackage(
+  NAME Boost
+  VERSION 1.77.0
+  URL https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.bz2
+  URL_HASH SHA256=fc9f85fc030e233142908241af7a846e60630aa7388de9a5fafb1f3a26840854
+  DOWNLOAD_ONLY True
+)
+if(Boost_ADDED)
+  # Define the header-only Boost target
+  add_library(Boost::headers INTERFACE IMPORTED GLOBAL)
+  target_include_directories(Boost::headers SYSTEM INTERFACE ${Boost_SOURCE_DIR})
+
+  # Disable autolink
+  target_compile_definitions(
+    Boost::headers
+    INTERFACE $<$<CONFIG:Release>:BOOST_DISABLE_ASSERT>
+              BOOST_ASIO_NO_DEPRECATED
+              BOOST_SYSTEM_NO_DEPRECATED
+              BOOST_THREAD_VERSION=5
+              BOOST_THREAD_USES_CHRONO
+              BOOST_THREAD_PROVIDES_EXECUTORS
+              BOOST_ALL_NO_LIB
+  )
+
+  CPMAddPackage(
+    NAME json
+    GITHUB_REPOSITORY boostorg/json
+    GIT_TAG boost-1.77.0
+    OPTIONS "BOOST_JSON_STANDALONE" "BOOST_JSON_INSTALL"
+  )
+
+  # CPMAddPackage(
+  #   NAME describe
+  #   GITHUB_REPOSITORY boostorg/regex
+  #   GIT_TAG boost-1.77.0
+  #   OPTIONS "BOOST_REGEX_STANDALONE"
+  # )
+
+  CPMAddPackage(
+    NAME program_options
+    GITHUB_REPOSITORY ClausKlein/program_options
+    GIT_TAG af41cd4b6e2ae7fa8d947bb6a8dae8c98884bad5 # boost-1.77.0
+  )
+
+  # CPMAddPackage(
+  #   NAME describe
+  #   GITHUB_REPOSITORY boostorg/describe
+  #   GIT_TAG boost-1.77.0
+  # )
+
+  # CPMAddPackage(
+  #   NAME mp11
+  #   GITHUB_REPOSITORY boostorg/mp11
+  #   GIT_TAG boost-1.77.0
+  # )
+
+  add_executable(grep grep.cpp)
+  target_link_libraries(grep Boost::program_options)
+
+  add_executable(json_rpc json_rpc.cpp)
+  target_link_libraries(json_rpc Boost::headers Boost::json)
+
+  add_executable(value_to value_to.cpp)
+  target_link_libraries(value_to Boost::headers Boost::json)
+
+  add_executable(value_from value_from.cpp)
+  target_link_libraries(value_from Boost::headers Boost::json)
 endif()
 
 # ---- install ----

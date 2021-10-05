@@ -8,7 +8,8 @@ MAKEFLAGS+= --warn-undefined-variables  # Warn when an undefined variable is ref
 
 # Project config
 ### export CXX:=g++-11
-## export CXX:=clang++
+### export CXX:=clang++
+export CPM_SOURCE_CACHE=${HOME}/.cache/CPM
 
 CXXFLAGS+=-std=c++17 -Wall -Wextra -Wshadow -Werror
 CPPFLAGS+=-MMD #XXX -DVERBOSE
@@ -23,15 +24,14 @@ all: ctest #XXX sca_property_parser
 sca_property_parser: sca_property_parser.cpp
 	$(LINK.cc) -o $@ $<
 
-test: build
+test: sca_property_parser
 	pwd
 	ls -lrt s*.json
 	@for file in s*.json; \
 	do \
-		echo "build/bin/sca_property_parser $${file} | ./json_pp.py | diff -u $${file} -"; \
-		build/bin/sca_property_parser $${file} | ./json_pp.py | diff -u $${file} -; \
+		echo "./sca_property_parser $${file} | ./json_pp.py | diff -u $${file} -"; \
+		./sca_property_parser $${file} | ./json_pp.py | diff -u $${file} -; \
 	done
-	gcovr -r .
 #XXX 		cat $${file} | ./json_pp.py; \
 
 clean:
@@ -47,14 +47,15 @@ distclean: clean
 
 build: .init
 	cmake -B build -S . -G Ninja -D CMAKE_BUILD_TYPE=Debug
-	ninja -C build
+	cmake --build build
 
 ctest: build
-	ninja -C build
-	cd build && ctest --rerun-failed --verbose
+	cmake --build build
+	cd build && ctest -C Debug --rerun-failed --verbose
+	gcovr -r .
 
 check: build
-	run-clang-tidy.py -p build -checks='-modernize-*,-misc-no-recursion' sca_property_parser.cpp minijson_example.cpp
+	run-clang-tidy.py -p build -checks='-modernize-use-trailing-return-type,-misc-no-recursion' *.cpp
 
 format:
 	clang-format -i *.hpp *.cpp

@@ -83,7 +83,7 @@ int main() {
           } << "array" >>
           [&] {
             //=================================
-            parse_array(ctx, [&](value v1) { obj.array.push_back(v1.as_long()); });
+            parse_array(ctx, [&](const value& v1) { obj.array.push_back(v1.as_long()); });
             //=================================
           } << any >>
           [&] { ignore(ctx); };  // ANY other OBJECT

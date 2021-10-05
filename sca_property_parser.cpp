@@ -1,7 +1,20 @@
 #include "minijson_reader.hpp"
 #include "minijson_writer.hpp"
 
+#include <boost/pfr.hpp>
 #include <magic_enum.hpp>
+
+struct my_struct {  // no ostream operator defined!
+  int i;
+  char c;
+  double d;
+};
+
+void test_pfr() {
+  my_struct s{100, 'H', 3.141593};
+  std::cerr << "my_struct has " << boost::pfr::tuple_size<my_struct>::value << " fields: " << boost::pfr::io(s)
+            << std::endl;
+}
 
 #include <exception>
 #include <fstream>
@@ -48,7 +61,7 @@ namespace {
 //
 // NOTE: without uint8_t (octet), use base64 coded octet-stream! CK
 //
-typedef std::variant<bool, long long, double, std::string> value_type;
+using value_type = std::variant<bool, long long, double, std::string>;
 
 struct obj_type {
   obj_type() = default;
@@ -174,7 +187,7 @@ struct parse_array_nested_handler {  // NOLINT(hicpp-special-member-functions)
 
   explicit parse_array_nested_handler(Context& context, obj_type& obj) : ctx(context), counter(0), myobj(obj) {}
 
-  ~parse_array_nested_handler() {}
+  ~parse_array_nested_handler() = default;
 
   void operator()(const minijson::value& v) {
     TRACEFUNC;
@@ -217,7 +230,7 @@ struct parse_object_nested_handler {  // NOLINT(hicpp-special-member-functions)
 
   explicit parse_object_nested_handler(Context& context, obj_type& obj) : ctx(context), counter(0), myobj(obj) {}
 
-  ~parse_object_nested_handler() {}
+  ~parse_object_nested_handler() = default;
 
   void operator()(const char* name, const minijson::value& v) {
     TRACEFUNC;
@@ -236,13 +249,13 @@ struct parse_object_nested_handler {  // NOLINT(hicpp-special-member-functions)
     } else if (minijson::Array == v.type()) {
       TRACE("\t" << std::quoted(name) << ": [");
       if (myobj.type == SCA::eBoolSequence) {
-        minijson::parse_array(ctx, [&](minijson::value value) { myobj.array.emplace_back(value.as_bool()); });
+        minijson::parse_array(ctx, [&](const minijson::value& value) { myobj.array.emplace_back(value.as_bool()); });
       } else if (myobj.type == SCA::eLongSequence) {
-        minijson::parse_array(ctx, [&](minijson::value value) { myobj.array.emplace_back(value.as_longlong()); });
+        minijson::parse_array(ctx, [&](const minijson::value& value) { myobj.array.emplace_back(value.as_longlong()); });
       } else if (myobj.type == SCA::eDoubleSequence) {
-        minijson::parse_array(ctx, [&](minijson::value value) { myobj.array.emplace_back(value.as_double()); });
+        minijson::parse_array(ctx, [&](const minijson::value& value) { myobj.array.emplace_back(value.as_double()); });
       } else if (myobj.type == SCA::eStringSequence) {
-        minijson::parse_array(ctx, [&](minijson::value value) { myobj.array.emplace_back(value.as_string()); });
+        minijson::parse_array(ctx, [&](const minijson::value& value) { myobj.array.emplace_back(value.as_string()); });
       } else {
         minijson::parse_array(ctx, parse_array_nested_handler<Context>(ctx, myobj));
       }
@@ -253,7 +266,7 @@ struct parse_object_nested_handler {  // NOLINT(hicpp-special-member-functions)
       if (name == std::string("name")) {
         myobj.name = v.as_string();
       } else if (name == std::string("type")) {
-        auto type = magic_enum::enum_cast<SCA::PropertyTypes>(v.as_string());
+        auto type = magic_enum::enum_cast<SCA::PropertyTypes>(v.as_string().c_str());
         if (type.has_value()) {
           myobj.type = type.value();
         } else {
@@ -301,6 +314,10 @@ int main(int argc, char* argv[]) {
     }
 
     std::cout << obj << std::endl;
+
+    test_pfr();
+    // FIXME std::cerr << "obj_type has " << boost::pfr::tuple_size<obj_type>::value << " fields: " << boost::pfr::io(obj)
+    // << "\n";
   } else {
     std::cerr << *argv << " filename [, ...]" << std::endl;
     return -1;
