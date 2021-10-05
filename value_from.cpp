@@ -19,9 +19,7 @@ void tag_invoke(boost::json::value_from_tag const&, boost::json::value& v, T con
   auto& obj = v.emplace_object();
   // #############################
 
-  boost::mp11::mp_for_each<D1>([&](auto D) {
-    obj[D.name] = boost::json::value_from(t.*D.pointer);
-  });
+  boost::mp11::mp_for_each<D1>([&](auto D) { obj[D.name] = boost::json::value_from(t.*D.pointer); });
 }
 
 struct A {

@@ -9,15 +9,13 @@
  *
  */
 
-#include <boost/regex.hpp>
-
 #include <boost/program_options.hpp>
+#include <boost/regex.hpp>
 
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
-
 
 namespace po = boost::program_options;
 

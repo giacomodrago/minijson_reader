@@ -12,7 +12,8 @@ struct my_struct {  // no ostream operator defined!
 
 void test_pfr() {
   my_struct s{100, 'H', 3.141593};
-  std::cerr << "my_struct has " << boost::pfr::tuple_size<my_struct>::value << " fields: " << boost::pfr::io(s) << std::endl;
+  std::cerr << "my_struct has " << boost::pfr::tuple_size<my_struct>::value << " fields: " << boost::pfr::io(s)
+            << std::endl;
 }
 
 #include <exception>
@@ -60,7 +61,7 @@ namespace {
 //
 // NOTE: without uint8_t (octet), use base64 coded octet-stream! CK
 //
-using value_type  = std::variant<bool, long long, double, std::string>;
+using value_type = std::variant<bool, long long, double, std::string>;
 
 struct obj_type {
   obj_type() = default;

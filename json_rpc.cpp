@@ -2,7 +2,7 @@
 #include <boost/json.hpp>
 #include <boost/mp11.hpp>
 #include <boost/type_traits.hpp>
-//XXX #include <boost/utility/string_view.hpp>
+// XXX #include <boost/utility/string_view.hpp>
 
 #include <iostream>
 #include <stdexcept>

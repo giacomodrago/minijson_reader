@@ -24,9 +24,7 @@ T tag_invoke(boost::json::value_to_tag<T> const&, boost::json::value const& v) {
 
   T t{};
 
-  boost::mp11::mp_for_each<D1>([&](auto D) {
-    extract(obj, D.name, t.*D.pointer);
-  });
+  boost::mp11::mp_for_each<D1>([&](auto D) { extract(obj, D.name, t.*D.pointer); });
 
   return t;
 }

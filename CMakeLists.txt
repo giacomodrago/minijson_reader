@@ -14,7 +14,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 project(
   minijson_reader
-  VERSION 0.9.0
+  VERSION 0.9.1
   LANGUAGES CXX
 )
 
@@ -51,7 +51,7 @@ endif()
 CPMAddPackage(
   NAME minijson_writer
   GITHUB_REPOSITORY ClausKlein/minijson_writer
-  GIT_TAG 49021439cdb3b6c1029f0aa33a9522855b1f14ee # v0.9.0
+  GIT_TAG v0.9.1
   OPTIONS "BUILD_TESTS ${BUILD_TESTS}" "MINIJSON_INSTALL ${MINIJSON_INSTALL}"
 )
 
