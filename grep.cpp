@@ -84,15 +84,18 @@ int main(int argc, char* argv[]) {
         //("context,C", po::value<int>(), "Print  arg lines of output context.  Places a line containing -- between
         //contiguous groups of matches.")
         ("byte-offset,b", "Print the byte offset within the input file before each line  of output.")
-        ("count,c", "Suppress normal output; instead print a count of matching  lines for  each  input  file.  With the -v, " "--invert-match option (see below), count non-matching lines.")
+        ("count,c", "Suppress normal output; instead print a count of matching  lines for  each  input  file.  With the -v, "
+            "--invert-match option (see below), count non-matching lines.")
         ("extended-regexp,E", "Interpret PATTERN as an POSIX-extended regular expression.")
         ("perl-regexp,P", "Interpret PATTERN as a Perl regular expression.")
         //("regexp,e", po::value<std::string>(&pattern), "Use PATTERN as the pattern; useful to protect patterns beginning
         //with -.")
         ("basic-regexp,G", "Interpret arg as a POSIX-basic regular expression (see below).  This is the default.")
         ("ignore-case,i", "Ignore case distinctions in  both  the  PATTERN  and  the  input files.")
-        ("files-without-match,L", "Suppress  normal  output;  instead  print the name of each input file from which no output would normally " "have been printed.  The scanning will stop on the first match.")
-        ("files-with-matches,l", "Suppress  normal  output;  instead  print the name of each input file from which output would normally have been printed.   The scanning will stop on the first match.")
+        ("files-without-match,L", "Suppress  normal  output;  instead  print the name of each input file from which no output "
+            "would normally have been printed.  The scanning will stop on the first match.")
+        ("files-with-matches,l", "Suppress  normal  output;  instead  print the name of each input file from which output would "
+            " normally have been printed.   The scanning will stop on the first match.")
         ("line-number,n", "Prefix each line of output with the line number within its input file.");
     // Hidden options, will be allowed both on command line and
     // in config file, but will not be shown to the user.
@@ -137,9 +140,9 @@ int main(int argc, char* argv[]) {
       return 1;
     }
     if (vm.count("input-file")) {
-      const std::vector<std::string>& files = vm["input-file"].as<std::vector<std::string> >();
+      const auto files = vm["input-file"].as<std::vector<std::string> >();
       file_count = files.size();
-      for (std::vector<std::string>::const_iterator i = files.begin(); i != files.end(); ++i) { process_file(*i); }
+      for (const auto& file : files) { process_file(file); }
     } else {
       // no input files, scan stdin instead:
       process_stream(std::cin);

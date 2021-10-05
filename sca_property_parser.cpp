@@ -60,7 +60,7 @@ namespace {
 //
 // NOTE: without uint8_t (octet), use base64 coded octet-stream! CK
 //
-typedef std::variant<bool, long long, double, std::string> value_type;
+using value_type  = std::variant<bool, long long, double, std::string>;
 
 struct obj_type {
   obj_type() = default;

@@ -9,8 +9,9 @@ MAKEFLAGS+= --warn-undefined-variables  # Warn when an undefined variable is ref
 # Project config
 ### export CXX:=g++-11
 ### export CXX:=clang++
+export CPM_SOURCE_CACHE=${HOME}/.cache/CPM
 
-CXXFLAGS+=-std=c++20 -Wall -Wextra -Wshadow -Werror
+CXXFLAGS+=-std=c++17 -Wall -Wextra -Wshadow -Werror
 CPPFLAGS+=-MMD #XXX -DVERBOSE
 TARGET_ARCH:=
 LDFLAGS:=
@@ -54,7 +55,7 @@ ctest: build
 	gcovr -r .
 
 check: build
-	run-clang-tidy.py -p build -checks='-modernize-use-trailing-return-type,-misc-no-recursion' sca_property_parser.cpp minijson_example.cpp
+	run-clang-tidy.py -p build -checks='-modernize-use-trailing-return-type,-misc-no-recursion' *.cpp
 
 format:
 	clang-format -i *.hpp *.cpp

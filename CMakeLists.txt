@@ -26,7 +26,7 @@ option(MINIJSON_INSTALL "Generate the install target" ${MINIJSON_MASTER_PROJECT}
 option(CMAKE_CXX_EXTENSIONS "Default value for CXX_EXTENSIONS property of targets." NO)
 option(CMAKE_CXX_STANDARD_REQUIRED "The c++ standard is requrired" YES)
 set(CMAKE_CXX_STANDARD
-    20
+    17
     CACHE STRING "The used c++ standard"
 )
 
@@ -51,7 +51,7 @@ endif()
 CPMAddPackage(
   NAME minijson_writer
   GITHUB_REPOSITORY ClausKlein/minijson_writer
-  GIT_TAG v0.9.0
+  GIT_TAG 49021439cdb3b6c1029f0aa33a9522855b1f14ee # v0.9.0
   OPTIONS "BUILD_TESTS ${BUILD_TESTS}" "MINIJSON_INSTALL ${MINIJSON_INSTALL}"
 )
 
@@ -89,10 +89,10 @@ if(BUILD_TESTS)
   target_compile_features(minijson_example PRIVATE cxx_std_17)
   target_link_libraries(sca_property_parser minijson::minijson_writer magic_enum::magic_enum Boost::pfr)
 
-  add_executable(${PROJECT_NAME}_tests minijson_reader.hpp minijson_reader_tests.cpp)
-  target_link_libraries(${PROJECT_NAME}_tests GTest::gtest_main)
+  add_executable(test_${PROJECT_NAME} minijson_reader.hpp test/minijson_reader_tests.cpp)
+  target_link_libraries(test_${PROJECT_NAME} GTest::gtest_main)
 
-  foreach(prog minijson_example sca_property_parser ${PROJECT_NAME}_tests)
+  foreach(prog minijson_example sca_property_parser test_${PROJECT_NAME})
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC")
       target_compile_options(${prog} PRIVATE /W4 /WX /wd4244 /wd4996)
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -112,7 +112,7 @@ if(BUILD_TESTS)
   if(NOT MSVC)
     option(ENABLE_TEST_COVERAGE "Enable test coverage" YES)
     if(ENABLE_TEST_COVERAGE AND "${CMAKE_BUILD_TYPE}" STREQUAL Debug)
-      foreach(prog minijson_example sca_property_parser ${PROJECT_NAME}_tests)
+      foreach(prog minijson_example sca_property_parser test_${PROJECT_NAME})
         target_compile_options(${prog} PUBLIC -O0 -g -fprofile-arcs -ftest-coverage)
         target_link_options(${prog} PUBLIC -fprofile-arcs -ftest-coverage)
       endforeach()
@@ -123,7 +123,7 @@ if(BUILD_TESTS)
 
   enable_testing()
 
-  add_test(NAME all_tests COMMAND ${PROJECT_NAME}_tests)
+  add_test(NAME test_${PROJECT_NAME} COMMAND test_${PROJECT_NAME})
   add_test(NAME minijson_example COMMAND minijson_example)
 
   add_test(
