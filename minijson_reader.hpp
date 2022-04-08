@@ -271,7 +271,8 @@ public:
         EXPECTED_COLON,
         EXPECTED_COMMA_OR_CLOSING_BRACKET,
         NESTED_OBJECT_OR_ARRAY_NOT_PARSED,
-        EXCEEDED_NESTING_LIMIT
+        EXCEEDED_NESTING_LIMIT,
+        NULL_UTF16_CHARACTER
     };
 
 private:
@@ -323,6 +324,7 @@ public:
         case EXPECTED_COMMA_OR_CLOSING_BRACKET: return "Expected comma or closing bracket";
         case NESTED_OBJECT_OR_ARRAY_NOT_PARSED: return "Nested object or array not parsed";
         case EXCEEDED_NESTING_LIMIT:            return "Exceeded nesting limit (" MJR_STRINGIFY(MJR_NESTING_LIMIT) ")";
+        case NULL_UTF16_CHARACTER:              return "Null UTF-16 character";
         }
 
         return ""; // to suppress compiler warnings -- LCOV_EXCL_LINE
@@ -635,6 +637,11 @@ void read_quoted_string(Context& context, bool skip_opening_quote = false)
                 try
                 {
                     const uint16_t code_unit = parse_utf16_escape_sequence(utf16_seq);
+
+                    if (code_unit == 0 && high_surrogate == 0)
+                    {
+                        throw parse_error(context, parse_error::NULL_UTF16_CHARACTER);
+                    }
 
                     if (high_surrogate != 0)
                     {
