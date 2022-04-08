@@ -246,5 +246,6 @@ You probably want to check that the `type()` of each `value` is the one you expe
 - `EXPECTED_COMMA_OR_CLOSING_BRACKET`
 - `NESTED_OBJECT_OR_ARRAY_NOT_PARSED`: if this happens, make sure you are ignoring unnecessary nested objects or arrays in the proper way
 - `EXCEEDED_NESTING_LIMIT`: this means that the nesting depth exceeded a sanity limit that is defaulted to `32` and can be overriden at compile time by defining the `MJR_NESTING_LIMIT` macro. A sanity check on the nesting depth is essential to avoid stack overflows caused by malicious inputs such as `[[[[[[[[[[[[[[[...more nesting...]]]]]]]]]]]]]]]`.
+- `NULL_UTF16_CHARACTER`
 
 `parse_error` also has a `size_t offset()` method returning the approximate offset in the input message at which the error occurred. Beware: this offset is **not** guaranteed to be accurate, it can be out-of-bounds, and can change without prior notice in future versions of the library (for example, because it is made more accurate).
