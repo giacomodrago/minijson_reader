@@ -724,14 +724,23 @@ class value MJR_FINAL
 private:
 
     value_type m_type;
+    bool m_long_available;
+    bool m_double_available;
     const char* m_buffer;
     long m_long_value;
     double m_double_value;
 
 public:
 
-    explicit value(value_type type = Null, const char* buffer = "", long long_value = 0, double double_value = 0.0) :
+    explicit value(value_type type = Null,
+                   const char* buffer = "",
+                   long long_value = 0,
+                   bool long_available = false,
+                   double double_value = 0.0,
+                   bool double_available = false) :
         m_type(type),
+        m_long_available(long_available),
+        m_double_available(double_available),
         m_buffer(buffer),
         m_long_value(long_value),
         m_double_value(double_value)
@@ -753,6 +762,11 @@ public:
         return m_long_value;
     }
 
+    bool long_available() const
+    {
+        return m_long_available;
+    }
+
     bool as_bool() const
     {
         return (m_long_value) ? true : false; // to avoid VS2013 warnings
@@ -761,6 +775,11 @@ public:
     double as_double() const
     {
         return m_double_value;
+    }
+
+    bool double_available() const
+    {
+        return m_double_available;
     }
 }; // class value
 
@@ -774,31 +793,36 @@ value parse_unquoted_value(const Context& context)
 
     if (strcmp(buffer, "true") == 0)
     {
-        return value(Boolean, buffer, 1, 1.0);
+        return value(Boolean, buffer, 1, true, 1.0, true);
     }
     else if (strcmp(buffer, "false") == 0)
     {
-        return value(Boolean, buffer, 0, 0.0);
+        return value(Boolean, buffer, 0, true, 0.0, true);
     }
     else if (strcmp(buffer, "null") == 0)
     {
-        return value(Null, buffer, 0, 0.0);
+        return value(Null, buffer, 0, false, 0.0, false);
     }
     else
     {
         long long_value = 0;
         double double_value = 0.0;
+        bool long_available = false;
+        bool double_available = false;
 
         try
         {
             long_value = parse_long(buffer);
+            long_available = true;
             double_value = long_value;
+            double_available = true;
         }
         catch (const number_parse_error&)
         {
             try
             {
                 double_value = parse_double(buffer);
+                double_available = true;
             }
             catch (const number_parse_error&)
             {
@@ -806,7 +830,7 @@ value parse_unquoted_value(const Context& context)
             }
         }
 
-        return value(Number, buffer, long_value, double_value);
+        return value(Number, buffer, long_value, long_available, double_value, double_available);
     }
 }
 
