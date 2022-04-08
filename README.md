@@ -97,7 +97,9 @@ Field and element values are accessible through instances of the `minijson::valu
 - `minijson::value_type type()`: the type of the value. Possible types are `String`, `Number`, `Boolean`, `Object`, `Array`, and `Null`.
 - `const char* as_string()`: the value as a null-terminated UTF-8 encoded string. This representation is always available except when `type()` is `Object` or `Array`, in which case an empty string is returned. The string outlives the `value` instance, but its lifetime is limited by the one of the underlying context, except for `buffer_context`, in which case it will stay valid until the buffer itself is destroyed.
 - `long as_long()`: the value as a `long` integer. This representation is available when `type()` is `Number` and the number could be parsed by [`strtol`](http://en.cppreference.com/w/cpp/string/byte/strtol) without overflows, or when the type is `Boolean`, in which case  `1` or `0` are returned for `true` and `false` respectively. In all the other cases, `0` is returned.
+- `bool long_available()`: whether the `long` representation is available.
 - `double as_double()`: the value as a double-precision floating-point number. This representation is available when `type()` is `Number` and the number could be parsed by [`strtod`](http://en.cppreference.com/w/cpp/string/byte/strtod) without overflows or underflows, or when the type is `Boolean`, in which case `non-zero` or `0.0` are returned for `true` and `false` respectively. In all the other cases, `0.0` is returned.
+- `bool double_available()`: whether the `double` representation is available.
 - `bool as_bool()`: the value as a boolean. This method simply returns the value of `as_long()` cast to `bool`.
 
 Copying a `value` does not allocate memory, and no method of the class throws.

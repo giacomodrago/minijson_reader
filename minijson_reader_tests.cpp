@@ -619,16 +619,20 @@ TEST(minijson_reader, value_default_constructed)
     ASSERT_EQ(0, value.as_long());
     ASSERT_FALSE(value.as_bool());
     ASSERT_DOUBLE_EQ(0.0, value.as_double());
+    ASSERT_FALSE(value.long_available());
+    ASSERT_FALSE(value.double_available());
 }
 
 TEST(minijson_reader, value_example)
 {
-    const minijson::value value(minijson::Number, "42.42", 42, 42.42);
+    const minijson::value value(minijson::Number, "42.42", 42, true, 42.42, true);
     ASSERT_EQ(minijson::Number, value.type());
     ASSERT_STREQ("42.42", value.as_string());
     ASSERT_EQ(42, value.as_long());
     ASSERT_TRUE(value.as_bool());
     ASSERT_DOUBLE_EQ(42.42, value.as_double());
+    ASSERT_TRUE(value.long_available());
+    ASSERT_TRUE(value.double_available());
 }
 
 template<typename Context>
@@ -672,6 +676,8 @@ TEST(minijson_reader_detail, parse_unquoted_value_true)
     ASSERT_EQ(1,                 value.as_long());
     ASSERT_TRUE(                 value.as_bool());
     ASSERT_DOUBLE_EQ(1.0,        value.as_double());
+    ASSERT_TRUE(                 value.long_available());
+    ASSERT_TRUE(                 value.double_available());
 }
 
 TEST(minijson_reader_detail, parse_unquoted_value_false)
@@ -686,6 +692,8 @@ TEST(minijson_reader_detail, parse_unquoted_value_false)
     ASSERT_EQ(0,                 value.as_long());
     ASSERT_FALSE(                value.as_bool());
     ASSERT_DOUBLE_EQ(0.0,        value.as_double());
+    ASSERT_TRUE(                 value.long_available());
+    ASSERT_TRUE(                 value.double_available());
 }
 
 TEST(minijson_reader_detail, parse_unquoted_value_null)
@@ -700,6 +708,8 @@ TEST(minijson_reader_detail, parse_unquoted_value_null)
     ASSERT_EQ(0,              value.as_long());
     ASSERT_FALSE(             value.as_bool());
     ASSERT_DOUBLE_EQ(0.0,     value.as_double());
+    ASSERT_FALSE(             value.long_available());
+    ASSERT_FALSE(             value.double_available());
 }
 
 TEST(minijson_reader_detail, parse_unquoted_value_integer)
@@ -714,6 +724,24 @@ TEST(minijson_reader_detail, parse_unquoted_value_integer)
     ASSERT_EQ(42,               value.as_long());
     ASSERT_TRUE(                value.as_bool());
     ASSERT_DOUBLE_EQ(42.0,      value.as_double());
+    ASSERT_TRUE(                value.long_available());
+    ASSERT_TRUE(                value.double_available());
+}
+
+TEST(minijson_reader_detail, parse_unquoted_value_large_integer)
+{
+    char buffer[] = "9223372036854775808]";
+    minijson::buffer_context buffer_context(buffer, sizeof(buffer) - 1);
+    minijson::detail::read_unquoted_value(buffer_context);
+
+    const minijson::value value = minijson::detail::parse_unquoted_value(buffer_context);
+    ASSERT_EQ(minijson::Number, value.type());
+    ASSERT_STREQ("9223372036854775808",     value.as_string());
+    ASSERT_EQ(0,                            value.as_long());
+    ASSERT_FALSE(                           value.as_bool());
+    ASSERT_DOUBLE_EQ(9223372036854775808.0, value.as_double());
+    ASSERT_FALSE(                           value.long_available());
+    ASSERT_TRUE(                            value.double_available());
 }
 
 TEST(minijson_reader_detail, parse_unquoted_value_double)
@@ -728,6 +756,8 @@ TEST(minijson_reader_detail, parse_unquoted_value_double)
     ASSERT_EQ(0,                value.as_long());
     ASSERT_FALSE(               value.as_bool());
     ASSERT_DOUBLE_EQ(42.0E+76,  value.as_double());
+    ASSERT_FALSE(               value.long_available());
+    ASSERT_TRUE(                value.double_available());
 }
 
 TEST(minijson_reader_detail, parse_unquoted_value_invalid)
@@ -754,6 +784,8 @@ TEST(minijson_reader_detail, read_value_object)
     ASSERT_EQ(0,                value.as_long());
     ASSERT_FALSE(               value.as_bool());
     ASSERT_DOUBLE_EQ(0.0,       value.as_double());
+    ASSERT_FALSE(               value.long_available());
+    ASSERT_FALSE(               value.double_available());
 
     ASSERT_EQ(0, ending_char);
 }
@@ -773,6 +805,8 @@ TEST(minijson_reader_detail, read_value_array)
     ASSERT_EQ(0,               value.as_long());
     ASSERT_FALSE(              value.as_bool());
     ASSERT_DOUBLE_EQ(0.0,      value.as_double());
+    ASSERT_FALSE(              value.long_available());
+    ASSERT_FALSE(              value.double_available());
 
     ASSERT_EQ(0, ending_char);
 }
@@ -792,6 +826,8 @@ TEST(minijson_reader_detail, read_value_quoted_string)
     ASSERT_EQ(0,                value.as_long());
     ASSERT_FALSE(               value.as_bool());
     ASSERT_DOUBLE_EQ(0.0,       value.as_double());
+    ASSERT_FALSE(               value.long_available());
+    ASSERT_FALSE(               value.double_available());
 
     ASSERT_EQ(0, ending_char);
 }
@@ -811,6 +847,8 @@ TEST(minijson_reader_detail, read_value_quoted_string_empty)
     ASSERT_EQ(0,                value.as_long());
     ASSERT_FALSE(               value.as_bool());
     ASSERT_DOUBLE_EQ(0.0,       value.as_double());
+    ASSERT_FALSE(               value.long_available());
+    ASSERT_FALSE(               value.double_available());
 
     ASSERT_EQ(0, ending_char);
 }
@@ -830,6 +868,8 @@ TEST(minijson_reader_detail, read_value_unquoted)
     ASSERT_EQ(1,                 value.as_long());
     ASSERT_TRUE(                 value.as_bool());
     ASSERT_DOUBLE_EQ(1.0,        value.as_double());
+    ASSERT_TRUE(                 value.long_available());
+    ASSERT_TRUE(                 value.double_available());
 
     ASSERT_EQ(',', ending_char);
 
