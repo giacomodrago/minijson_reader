@@ -45,9 +45,9 @@ private:
 
 public:
 
-    context_base() :
-        m_nested_status(NESTED_STATUS_NONE),
-        m_nesting_level(0)
+    context_base()
+    : m_nested_status(NESTED_STATUS_NONE)
+    , m_nesting_level(0)
     {
     }
 
@@ -97,13 +97,16 @@ protected:
     std::size_t m_write_offset;
     const char* m_current_write_buffer;
 
-    explicit buffer_context_base(const char* read_buffer, char* write_buffer, std::size_t length) :
-        m_read_buffer(read_buffer),
-        m_write_buffer(write_buffer),
-        m_length(length),
-        m_read_offset(0),
-        m_write_offset(0),
-        m_current_write_buffer(NULL)
+    explicit buffer_context_base(
+        const char* read_buffer,
+        char* write_buffer,
+        std::size_t length)
+    : m_read_buffer(read_buffer)
+    , m_write_buffer(write_buffer)
+    , m_length(length)
+    , m_read_offset(0)
+    , m_write_offset(0)
+    , m_current_write_buffer(NULL)
     {
         new_write_buffer();
     }
@@ -134,7 +137,8 @@ public:
     {
         if (m_write_offset >= m_read_offset)
         {
-            throw std::runtime_error("Invalid write call, please file a bug report");
+            throw std::runtime_error(
+                "Invalid write call, please file a bug report");
         }
 
         m_write_buffer[m_write_offset++] = c;
@@ -152,8 +156,8 @@ class buffer_context final : public detail::buffer_context_base
 {
 public:
 
-    explicit buffer_context(char* buffer, std::size_t length) :
-        detail::buffer_context_base(buffer, buffer, length)
+    explicit buffer_context(char* buffer, std::size_t length)
+    : detail::buffer_context_base(buffer, buffer, length)
     {
     }
 }; // class buffer_context
@@ -162,8 +166,9 @@ class const_buffer_context final : public detail::buffer_context_base
 {
 public:
 
-    explicit const_buffer_context(const char* buffer, std::size_t length) :
-        detail::buffer_context_base(buffer, new char[length], length) // don't worry about leaks, buffer_context_base can't throw
+    explicit const_buffer_context(const char* buffer, std::size_t length)
+    : detail::buffer_context_base(buffer, new char[length], length)
+    // don't worry about leaks, buffer_context_base can't throw
     {
     }
 
@@ -183,9 +188,9 @@ private:
 
 public:
 
-    explicit istream_context(std::istream& stream) :
-        m_stream(stream),
-        m_read_offset(0)
+    explicit istream_context(std::istream& stream)
+    : m_stream(stream)
+    , m_read_offset(0)
     {
         new_write_buffer();
     }
@@ -222,10 +227,13 @@ public:
     }
 
     // This method to retrieve the address of the write buffer MUST be called
-    // AFTER all the calls to write() for the current write buffer have been performed
+    // AFTER all the calls to write() for the current write buffer have been
+    // performed
     const char* write_buffer() const
     {
-        return !m_write_buffers.back().empty() ? &m_write_buffers.back()[0] : NULL;
+        return !m_write_buffers.back().empty()
+            ? &m_write_buffers.back()[0]
+            : NULL;
     }
 }; // class istream_context
 
@@ -267,9 +275,9 @@ private:
 public:
 
     template<typename Context>
-    explicit parse_error(const Context& context, error_reason reason) :
-        m_offset(get_offset(context)),
-        m_reason(reason)
+    explicit parse_error(const Context& context, error_reason reason)
+    : m_offset(get_offset(context))
+    , m_reason(reason)
     {
     }
 
@@ -287,20 +295,35 @@ public:
     {
         switch (m_reason)
         {
-        case UNKNOWN:                           return "Unknown parse error";
-        case EXPECTED_OPENING_QUOTE:            return "Expected opening quote";
-        case EXPECTED_UTF16_LOW_SURROGATE:      return "Expected UTF-16 low surrogate";
-        case INVALID_ESCAPE_SEQUENCE:           return "Invalid escape sequence";
-        case INVALID_UTF16_CHARACTER:           return "Invalid UTF-16 character";
-        case EXPECTED_CLOSING_QUOTE:            return "Expected closing quote";
-        case INVALID_VALUE:                     return "Invalid value";
-        case UNTERMINATED_VALUE:                return "Unterminated value";
-        case EXPECTED_OPENING_BRACKET:          return "Expected opening bracket";
-        case EXPECTED_COLON:                    return "Expected colon";
-        case EXPECTED_COMMA_OR_CLOSING_BRACKET: return "Expected comma or closing bracket";
-        case NESTED_OBJECT_OR_ARRAY_NOT_PARSED: return "Nested object or array not parsed";
-        case EXCEEDED_NESTING_LIMIT:            return "Exceeded nesting limit (" MJR_STRINGIFY(MJR_NESTING_LIMIT) ")";
-        case NULL_UTF16_CHARACTER:              return "Null UTF-16 character";
+        case UNKNOWN:
+            return "Unknown parse error";
+        case EXPECTED_OPENING_QUOTE:
+            return "Expected opening quote";
+        case EXPECTED_UTF16_LOW_SURROGATE:
+            return "Expected UTF-16 low surrogate";
+        case INVALID_ESCAPE_SEQUENCE:
+            return "Invalid escape sequence";
+        case INVALID_UTF16_CHARACTER:
+            return "Invalid UTF-16 character";
+        case EXPECTED_CLOSING_QUOTE:
+            return "Expected closing quote";
+        case INVALID_VALUE:
+            return "Invalid value";
+        case UNTERMINATED_VALUE:
+            return "Unterminated value";
+        case EXPECTED_OPENING_BRACKET:
+            return "Expected opening bracket";
+        case EXPECTED_COLON:
+            return "Expected colon";
+        case EXPECTED_COMMA_OR_CLOSING_BRACKET:
+            return "Expected comma or closing bracket";
+        case NESTED_OBJECT_OR_ARRAY_NOT_PARSED:
+            return "Nested object or array not parsed";
+        case EXCEEDED_NESTING_LIMIT:
+            return "Exceeded nesting limit ("
+                MJR_STRINGIFY(MJR_NESTING_LIMIT) ")";
+        case NULL_UTF16_CHARACTER:
+            return "Null UTF-16 character";
         }
 
         return ""; // to suppress compiler warnings -- LCOV_EXCL_LINE
@@ -316,11 +339,13 @@ struct utf8_char
 
     utf8_char()
     {
-        // wanted use value-initialization, but couldn't because of a weird VS2013 warning
+        // wanted use value-initialization, but couldn't because of a weird
+        // VS2013 warning
         std::fill_n(bytes, sizeof(bytes), 0);
     }
 
-    explicit utf8_char(std::uint8_t b0, std::uint8_t b1, std::uint8_t b2, std::uint8_t b3)
+    explicit utf8_char(
+        std::uint8_t b0, std::uint8_t b1, std::uint8_t b2, std::uint8_t b3)
     {
         bytes[0] = b0;
         bytes[1] = b1;
@@ -362,7 +387,8 @@ inline std::uint32_t utf16_to_utf32(std::uint16_t high, std::uint16_t low)
     {
         if (low != 0)
         {
-            // since the high code unit is not a surrogate, the low code unit should be zero
+            // since the high code unit is not a surrogate, the low code unit
+            // should be zero
             throw encoding_error();
         }
 
@@ -437,7 +463,8 @@ struct number_parse_error
 
 inline long parse_long(const char* str, int base = 10)
 {
-    if ((str == NULL) || (*str == 0) || std::isspace(str[0])) // we don't accept empty strings or strings with leading spaces
+    // We don't accept empty strings or strings with leading spaces
+    if (str == NULL || *str == 0 || std::isspace(str[0]))
     {
         throw number_parse_error();
     }
@@ -454,7 +481,9 @@ inline long parse_long(const char* str, int base = 10)
     {
         throw number_parse_error();
     }
-    else if ((saved_errno == ERANGE) && ((result == LONG_MIN) || (result == LONG_MAX))) // overflow
+    else if (
+        saved_errno == ERANGE &&
+        (result == LONG_MIN || result == LONG_MAX)) // overflow
     {
         throw number_parse_error();
     }
@@ -464,15 +493,17 @@ inline long parse_long(const char* str, int base = 10)
 
 inline double parse_double(const char* str)
 {
-    if ((str == NULL) || (*str == 0)) // we don't accept empty strings
+    if (str == NULL || *str == 0) // we don't accept empty strings
     {
         throw number_parse_error();
     }
 
-    // we perform this check to reject hex numbers (supported in C++11) and string with leading spaces
+    // We perform this check to reject hex numbers (supported in C++11)
+    // and string with leading spaces
     for (const char* c = str; *c != 0; c++)
     {
-        if (!(std::isdigit(*c) || (*c == '+') || (*c == '-') || (*c == '.') || (*c == 'e') || (*c == 'E')))
+        if (!std::isdigit(*c) &&
+            *c != '+' && *c != '-' && *c != '.' && *c != 'e' && *c != 'E')
         {
             throw number_parse_error();
         }
@@ -519,7 +550,7 @@ void write_utf8_char(Context& context, const utf8_char& c)
     for (std::size_t i = 0; i < sizeof(c.bytes); i++)
     {
         const char byte = c[i];
-        if ((i > 0) && (byte == 0))
+        if (i > 0 && byte == 0)
         {
             break;
         }
@@ -547,7 +578,7 @@ void read_quoted_string(Context& context, bool skip_opening_quote = false)
 
     char c;
 
-    while ((state != CLOSED) && ((c = context.read()) != 0))
+    while (state != CLOSED && (c = context.read()) != 0)
     {
         empty = false;
 
@@ -571,7 +602,8 @@ void read_quoted_string(Context& context, bool skip_opening_quote = false)
             }
             else if (high_surrogate != 0)
             {
-                throw parse_error(context, parse_error::EXPECTED_UTF16_LOW_SURROGATE);
+                throw parse_error(
+                    context, parse_error::EXPECTED_UTF16_LOW_SURROGATE);
             }
             else if (c == '"')
             {
@@ -590,16 +622,36 @@ void read_quoted_string(Context& context, bool skip_opening_quote = false)
 
             switch (c)
             {
-            case '"': context.write('"'); break;
-            case '\\': context.write('\\'); break;
-            case '/': context.write('/'); break;
-            case 'b': context.write('\b'); break;
-            case 'f': context.write('\f'); break;
-            case 'n': context.write('\n'); break;
-            case 'r': context.write('\r'); break;
-            case 't': context.write('\t'); break;
-            case 'u': state = UTF16_SEQUENCE; break;
-            default: throw parse_error(context, parse_error::INVALID_ESCAPE_SEQUENCE);
+            case '"':
+                context.write('"');
+                break;
+            case '\\':
+                context.write('\\');
+                break;
+            case '/':
+                context.write('/');
+                break;
+            case 'b':
+                context.write('\b');
+                break;
+            case 'f':
+                context.write('\f');
+                break;
+            case 'n':
+                context.write('\n');
+                break;
+            case 'r':
+                context.write('\r');
+                break;
+            case 't':
+                context.write('\t');
+                break;
+            case 'u':
+                state = UTF16_SEQUENCE;
+                break;
+            default:
+                throw parse_error(
+                    context, parse_error::INVALID_ESCAPE_SEQUENCE);
             }
 
             break;
@@ -612,17 +664,21 @@ void read_quoted_string(Context& context, bool skip_opening_quote = false)
             {
                 try
                 {
-                    const std::uint16_t code_unit = parse_utf16_escape_sequence(utf16_seq);
+                    const std::uint16_t code_unit =
+                        parse_utf16_escape_sequence(utf16_seq);
 
                     if (code_unit == 0 && high_surrogate == 0)
                     {
-                        throw parse_error(context, parse_error::NULL_UTF16_CHARACTER);
+                        throw parse_error(
+                            context, parse_error::NULL_UTF16_CHARACTER);
                     }
 
                     if (high_surrogate != 0)
                     {
-                        // we were waiting for the low surrogate (that now is code_unit)
-                        write_utf8_char(context, utf16_to_utf8(high_surrogate, code_unit));
+                        // We were waiting for the low surrogate
+                        // (that now is code_unit)
+                        write_utf8_char(
+                            context, utf16_to_utf8(high_surrogate, code_unit));
                         high_surrogate = 0;
                     }
                     else if (code_unit >= 0xD800 && code_unit <= 0xDBFF)
@@ -636,7 +692,8 @@ void read_quoted_string(Context& context, bool skip_opening_quote = false)
                 }
                 catch (const encoding_error&)
                 {
-                    throw parse_error(context, parse_error::INVALID_UTF16_CHARACTER);
+                    throw parse_error(
+                        context, parse_error::INVALID_UTF16_CHARACTER);
                 }
 
                 utf16_seq_offset = 0;
@@ -648,7 +705,9 @@ void read_quoted_string(Context& context, bool skip_opening_quote = false)
 
         case CLOSED: // to silence compiler warnings
 
-            throw std::runtime_error("This line should never be reached, please file a bug report"); // LCOV_EXCL_LINE
+            throw std::runtime_error(
+                "This line should never be reached, "
+                "please file a bug report"); // LCOV_EXCL_LINE
         }
     }
 
@@ -675,7 +734,9 @@ char read_unquoted_value(Context& context, char first_char = 0)
 
     char c;
 
-    while (((c = context.read()) != 0) && (c != ',') && (c != '}') && (c != ']') && !std::isspace(c))
+    while (
+        (c = context.read()) != 0 && c != ',' && c != '}' && c != ']' &&
+        !std::isspace(c))
     {
         context.write(c);
     }
@@ -720,13 +781,13 @@ public:
                    long long_value = 0,
                    bool long_available = false,
                    double double_value = 0.0,
-                   bool double_available = false) :
-        m_type(type),
-        m_long_available(long_available),
-        m_double_available(double_available),
-        m_buffer(buffer),
-        m_long_value(long_value),
-        m_double_value(double_value)
+                   bool double_available = false)
+    : m_type(type)
+    , m_long_available(long_available)
+    , m_double_available(double_available)
+    , m_buffer(buffer)
+    , m_long_value(long_value)
+    , m_double_value(double_value)
     {
     }
 
@@ -813,7 +874,13 @@ value parse_unquoted_value(const Context& context)
             }
         }
 
-        return value(Number, buffer, long_value, long_available, double_value, double_available);
+        return value(
+            Number,
+            buffer,
+            long_value,
+            long_available,
+            double_value,
+            double_available);
     }
 }
 
@@ -867,7 +934,9 @@ void parse_init_helper(const Context& context, char& c, bool& must_read)
 template<typename Context>
 value parse_value_helper(Context& context, char& c, bool& must_read)
 {
-    const std::pair<value, char> read_value_result = detail::read_value(context, c);
+    const std::pair<value, char> read_value_result =
+        detail::read_value(context, c);
+
     const value v = read_value_result.first;
 
     if (v.type() == Object)
@@ -921,7 +990,8 @@ void parse_object(Context& context, Handler&& handler)
     {
         if (context.nesting_level() != nesting_level)
         {
-            throw parse_error(context, parse_error::NESTED_OBJECT_OR_ARRAY_NOT_PARSED);
+            throw parse_error(
+                context, parse_error::NESTED_OBJECT_OR_ARRAY_NOT_PARSED);
         }
 
         if (must_read)
@@ -941,7 +1011,8 @@ void parse_object(Context& context, Handler&& handler)
         case OPENING_BRACKET:
             if (c != '{')
             {
-                throw parse_error(context, parse_error::EXPECTED_OPENING_BRACKET);
+                throw parse_error(
+                    context, parse_error::EXPECTED_OPENING_BRACKET);
             }
             state = FIELD_NAME_OR_CLOSING_BRACKET;
             break;
@@ -989,18 +1060,23 @@ void parse_object(Context& context, Handler&& handler)
             }
             else
             {
-                throw parse_error(context, parse_error::EXPECTED_COMMA_OR_CLOSING_BRACKET);
+                throw parse_error(
+                    context, parse_error::EXPECTED_COMMA_OR_CLOSING_BRACKET);
             }
             break;
 
         case END:
 
-            throw std::runtime_error("This line should never be reached, please file a bug report"); // LCOV_EXCL_LINE
+            throw std::runtime_error(
+                "This line should never be reached, "
+                "please file a bug report"); // LCOV_EXCL_LINE
         }
 
         if (c == 0)
         {
-            throw std::runtime_error("This line should never be reached, please file a bug report"); // LCOV_EXCL_LINE
+            throw std::runtime_error(
+                "This line should never be reached, "
+                "please file a bug report"); // LCOV_EXCL_LINE
         }
     }
 
@@ -1035,7 +1111,8 @@ void parse_array(Context& context, Handler&& handler)
     {
         if (context.nesting_level() != nesting_level)
         {
-            throw parse_error(context, parse_error::NESTED_OBJECT_OR_ARRAY_NOT_PARSED);
+            throw parse_error(
+                context, parse_error::NESTED_OBJECT_OR_ARRAY_NOT_PARSED);
         }
 
         if (must_read)
@@ -1055,7 +1132,8 @@ void parse_array(Context& context, Handler&& handler)
         case OPENING_BRACKET:
             if (c != '[')
             {
-                throw parse_error(context, parse_error::EXPECTED_OPENING_BRACKET);
+                throw parse_error(
+                    context, parse_error::EXPECTED_OPENING_BRACKET);
             }
             state = VALUE_OR_CLOSING_BRACKET;
             break;
@@ -1084,18 +1162,23 @@ void parse_array(Context& context, Handler&& handler)
             }
             else
             {
-                throw parse_error(context, parse_error::EXPECTED_COMMA_OR_CLOSING_BRACKET);
+                throw parse_error(
+                    context, parse_error::EXPECTED_COMMA_OR_CLOSING_BRACKET);
             }
             break;
 
         case END:
 
-            throw std::runtime_error("This line should never be reached, please file a bug report"); // LCOV_EXCL_LINE
+            throw std::runtime_error(
+                "This line should never be reached, "
+                "please file a bug report"); // LCOV_EXCL_LINE
         }
 
         if (c == 0)
         {
-            throw std::runtime_error("This line should never be reached, please file a bug report"); // LCOV_EXCL_LINE
+            throw std::runtime_error(
+                "This line should never be reached, "
+                "please file a bug report"); // LCOV_EXCL_LINE
         }
     }
 
@@ -1120,15 +1203,15 @@ private:
 
 public:
 
-    explicit dispatch(const char* field_name) :
-        m_field_name(field_name),
-        m_handled(false)
+    explicit dispatch(const char* field_name)
+    : m_field_name(field_name)
+    , m_handled(false)
     {
     }
 
-    explicit dispatch(const std::string& field_name) :
-        m_field_name(field_name.c_str()),
-        m_handled(false)
+    explicit dispatch(const std::string& field_name)
+    : m_field_name(field_name.c_str())
+    , m_handled(false)
     {
     }
 
@@ -1153,9 +1236,9 @@ private:
 
 public:
 
-    explicit dispatch_rule(dispatch& parent_dispatch, const char* field_name) :
-        m_dispatch(parent_dispatch),
-        m_field_name(field_name)
+    explicit dispatch_rule(dispatch& parent_dispatch, const char* field_name)
+    : m_dispatch(parent_dispatch)
+    , m_field_name(field_name)
     {
     }
 
@@ -1167,7 +1250,9 @@ public:
     template<typename Handler>
     dispatch& operator>>(Handler&& handler) const
     {
-        if (!m_dispatch.m_handled && ((m_field_name == NULL) || (std::strcmp(m_dispatch.m_field_name, m_field_name) == 0)))
+        if (!m_dispatch.m_handled &&
+            (m_field_name == NULL ||
+             std::strcmp(m_dispatch.m_field_name, m_field_name) == 0))
         {
             handler();
             m_dispatch.m_handled = true;
@@ -1186,8 +1271,8 @@ private:
 
 public:
 
-    explicit ignore(Context& context) :
-        m_context(context)
+    explicit ignore(Context& context)
+    : m_context(context)
     {
     }
 
