@@ -1654,8 +1654,6 @@ TEST(minijson_reader, parse_array_invalid)
         minijson::parse_error::EXCEEDED_NESTING_LIMIT, "Exceeded nesting limit (32)");
 }
 
-#if MJR_CPP11_SUPPORTED
-
 TEST(minijson_dispatch, present)
 {
     bool handled[4] { };
@@ -1770,8 +1768,6 @@ TEST(minijson_dispatch, parse_object)
     ASSERT_EQ(2, obj.array[1]);
     ASSERT_EQ(3, obj.array[2]);
 }
-
-#endif // MJR_CPP11_SUPPORTED
 
 int main(int argc, char** argv)
 {

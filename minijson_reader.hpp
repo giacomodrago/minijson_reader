@@ -16,18 +16,6 @@
 #include <stdexcept>
 #include <istream>
 
-#define MJR_CPP11_SUPPORTED __cplusplus > 199711L || _MSC_VER >= 1800
-
-#if MJR_CPP11_SUPPORTED
-
-#define MJR_FINAL final
-
-#else
-
-#define MJR_FINAL
-
-#endif // MJR_CPP11_SUPPORTED
-
 #ifndef MJR_NESTING_LIMIT
 #define MJR_NESTING_LIMIT 32
 #endif
@@ -41,22 +29,7 @@ namespace minijson
 namespace detail
 {
 
-class noncopyable
-{
-private:
-
-    // C++03 idiom to prevent copy construction and copy assignment
-    noncopyable(const noncopyable&);
-    noncopyable& operator=(const noncopyable&);
-
-public:
-
-    noncopyable()
-    {
-    }
-}; // class noncopyable
-
-class context_base : noncopyable
+class context_base
 {
 public:
 
@@ -79,6 +52,11 @@ public:
         m_nesting_level(0)
     {
     }
+
+    context_base(const context_base&) = delete;
+    context_base(context_base&&) = delete;
+    context_base& operator=(const context_base&) = delete;
+    context_base& operator=(context_base&&) = delete;
 
     char nested_status() const
     {
@@ -172,7 +150,7 @@ public:
 
 } // namespace detail
 
-class buffer_context MJR_FINAL : public detail::buffer_context_base
+class buffer_context final : public detail::buffer_context_base
 {
 public:
 
@@ -182,7 +160,7 @@ public:
     }
 }; // class buffer_context
 
-class const_buffer_context MJR_FINAL : public detail::buffer_context_base
+class const_buffer_context final : public detail::buffer_context_base
 {
 public:
 
@@ -197,13 +175,13 @@ public:
     }
 }; // class const_buffer_context
 
-class istream_context MJR_FINAL : public detail::context_base
+class istream_context final : public detail::context_base
 {
 private:
 
     std::istream& m_stream;
     size_t m_read_offset;
-    std::list<std::vector<char> > m_write_buffers;
+    std::list<std::vector<char>> m_write_buffers;
 
 public:
 
@@ -726,7 +704,7 @@ enum value_type
     Null
 };
 
-class value MJR_FINAL
+class value final
 {
 private:
 
@@ -914,7 +892,7 @@ value parse_value_helper(Context& context, char& c, bool& must_read)
 } // namespace detail
 
 template<typename Context, typename Handler>
-void parse_object(Context& context, Handler handler)
+void parse_object(Context& context, Handler&& handler)
 {
     const size_t nesting_level = context.nesting_level();
     if (nesting_level > MJR_NESTING_LIMIT)
@@ -1032,7 +1010,7 @@ void parse_object(Context& context, Handler handler)
 }
 
 template<typename Context, typename Handler>
-void parse_array(Context& context, Handler handler)
+void parse_array(Context& context, Handler&& handler)
 {
     const size_t nesting_level = context.nesting_level();
     if (nesting_level > MJR_NESTING_LIMIT)
@@ -1133,7 +1111,7 @@ class dispatch_rule; // forward declaration
 
 } // namespace detail
 
-class dispatch : detail::noncopyable
+class dispatch
 {
     friend class detail::dispatch_rule;
 
@@ -1155,6 +1133,11 @@ public:
         m_handled(false)
     {
     }
+
+    dispatch(const dispatch&) = delete;
+    dispatch(dispatch&&) = delete;
+    dispatch& operator=(const dispatch&) = delete;
+    dispatch& operator=(dispatch&&) = delete;
 
     detail::dispatch_rule operator<<(const char* field_name);
     detail::dispatch_rule operator<<(const std::string& field_name);
@@ -1178,8 +1161,13 @@ public:
     {
     }
 
+    dispatch_rule(const dispatch_rule&) = delete;
+    dispatch_rule(dispatch_rule&&) = default;
+    dispatch_rule& operator=(const dispatch_rule&) = delete;
+    dispatch_rule& operator=(dispatch_rule&&) = delete;
+
     template<typename Handler>
-    dispatch& operator>>(Handler handler) const
+    dispatch& operator>>(Handler&& handler) const
     {
         if (!m_dispatch.m_handled && ((m_field_name == NULL) || (strcmp(m_dispatch.m_field_name, m_field_name) == 0)))
         {
@@ -1194,6 +1182,8 @@ public:
 template<typename Context>
 class ignore
 {
+private:
+
     Context& m_context;
 
 public:
@@ -1202,6 +1192,11 @@ public:
         m_context(context)
     {
     }
+
+    ignore(const ignore&) = delete;
+    ignore(ignore&&) = delete;
+    ignore& operator=(const ignore&) = delete;
+    ignore& operator=(ignore&&) = delete;
 
     void operator()(const char*, value)
     {
@@ -1213,7 +1208,7 @@ public:
         operator()();
     }
 
-    void operator()() const
+    void operator()()
     {
         switch (m_context.nested_status())
         {
