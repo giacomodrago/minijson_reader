@@ -1,6 +1,6 @@
 # minijson_reader
 
-[![Build Status](https://travis-ci.org/giacomodrago/minijson_reader.svg?branch=master)](https://travis-ci.org/giacomodrago/minijson_reader)
+[![CMake](https://github.com/giacomodrago/minijson_reader/actions/workflows/cmake.yml/badge.svg)](https://github.com/giacomodrago/minijson_reader/actions/workflows/cmake.yml)
 
 ## Motivation and design
 
