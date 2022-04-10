@@ -26,7 +26,7 @@ jobs:
       run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
 
     - name: Install GTest
-      run: sudo apt-get install libgtest-dev
+      run: sudo apt-get install -y libgtest-dev
 
     - name: Build
       # Build your program with the given configuration
