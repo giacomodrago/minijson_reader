@@ -193,7 +193,7 @@ public:
 
     ~const_buffer_context()
     {
-        //delete[] m_write_buffer;
+        delete[] m_write_buffer;
     }
 }; // class const_buffer_context
 
