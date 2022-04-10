@@ -3,10 +3,9 @@
 
 #include <array>
 #include <cctype>
-#include <cerrno>
-#include <climits>
+#include <charconv>
+#include <cstddef>
 #include <cstdint>
-#include <cstdlib>
 #include <cstring>
 #include <istream>
 #include <list>
@@ -425,28 +424,18 @@ struct number_parse_error
 
 inline long parse_long(const char* str, int base = 10)
 {
-    // We don't accept empty strings or strings with leading spaces
-    if (str == NULL || *str == 0 || std::isspace(str[0]))
+    // FIXME: this is useless work as the length of the string is already known,
+    // it just needs to be made available here
+    const char* const end_ptr = str + std::strlen(str);
+
+    long result;
+
+    const auto [parse_end_ptr, error] =
+        std::from_chars(str, end_ptr, result, base);
+    if (parse_end_ptr != end_ptr || error != std::errc())
     {
-        throw number_parse_error();
-    }
-
-    int saved_errno = errno; // save errno
-    errno = 0; // reset errno
-
-    char* endptr;
-    const long result = std::strtol(str, &endptr, base);
-
-    std::swap(saved_errno, errno); // restore errno
-
-    if (*endptr != 0) // we didn't consume the whole string
-    {
-        throw number_parse_error();
-    }
-    else if (
-        saved_errno == ERANGE &&
-        (result == LONG_MIN || result == LONG_MAX)) // overflow
-    {
+        // We could not parse the whole string as an integer or the number is
+        // out of range
         throw number_parse_error();
     }
 
@@ -455,36 +444,27 @@ inline long parse_long(const char* str, int base = 10)
 
 inline double parse_double(const char* str)
 {
-    if (str == NULL || *str == 0) // we don't accept empty strings
+    // Find the end of the string, while also performing a check on the
+    // characters to make sure we reject NaN, INF, and whatever other special
+    // sequence JSON does not allow, but std::from_chars() has to support
+    const char* end_ptr = str;
+    for (; *end_ptr != 0; ++end_ptr)
     {
-        throw number_parse_error();
-    }
-
-    // We perform this check to reject hex numbers (supported in C++11)
-    // and string with leading spaces
-    for (const char* c = str; *c != 0; c++)
-    {
-        if (!std::isdigit(*c) &&
-            *c != '+' && *c != '-' && *c != '.' && *c != 'e' && *c != 'E')
+        const char c = *end_ptr;
+        if (!std::isdigit(c) &&
+            c != '+' && c != '-' && c != '.' && c != 'e' && c != 'E')
         {
             throw number_parse_error();
         }
     }
 
-    int saved_errno = errno; // save errno
-    errno = 0; // reset errno
+    double result;
 
-    char* endptr;
-    const double result = std::strtod(str, &endptr);
-
-    std::swap(saved_errno, errno); // restore errno
-
-    if (*endptr != 0) // we didn't consume the whole string
+    const auto [parse_end_ptr, error] = std::from_chars(str, end_ptr, result);
+    if (parse_end_ptr != end_ptr || error != std::errc())
     {
-        throw number_parse_error();
-    }
-    else if (saved_errno == ERANGE) // underflow or overflow
-    {
+        // We could not parse the whole string as a floating point number
+        // or the number is out of range
         throw number_parse_error();
     }
 
