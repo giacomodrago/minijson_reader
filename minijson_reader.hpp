@@ -3,7 +3,7 @@
 
 #include <cstdlib>
 #include <cctype>
-#include <stdint.h>
+#include <cstdint>
 #include <climits>
 #include <cstring>
 #include <cerrno>
@@ -43,7 +43,7 @@ public:
 private:
 
     context_nested_status m_nested_status;
-    size_t m_nesting_level;
+    std::size_t m_nesting_level;
 
 public:
 
@@ -82,7 +82,7 @@ public:
         }
     }
 
-    size_t nesting_level() const
+    std::size_t nesting_level() const
     {
         return m_nesting_level;
     }
@@ -94,12 +94,12 @@ protected:
 
     const char* m_read_buffer;
     char* m_write_buffer;
-    size_t m_length;
-    size_t m_read_offset;
-    size_t m_write_offset;
+    std::size_t m_length;
+    std::size_t m_read_offset;
+    std::size_t m_write_offset;
     const char* m_current_write_buffer;
 
-    explicit buffer_context_base(const char* read_buffer, char* write_buffer, size_t length) :
+    explicit buffer_context_base(const char* read_buffer, char* write_buffer, std::size_t length) :
         m_read_buffer(read_buffer),
         m_write_buffer(write_buffer),
         m_length(length),
@@ -122,7 +122,7 @@ public:
         return m_read_buffer[m_read_offset++];
     }
 
-    size_t read_offset() const
+    std::size_t read_offset() const
     {
         return m_read_offset;
     }
@@ -154,7 +154,7 @@ class buffer_context final : public detail::buffer_context_base
 {
 public:
 
-    explicit buffer_context(char* buffer, size_t length) :
+    explicit buffer_context(char* buffer, std::size_t length) :
         detail::buffer_context_base(buffer, buffer, length)
     {
     }
@@ -164,7 +164,7 @@ class const_buffer_context final : public detail::buffer_context_base
 {
 public:
 
-    explicit const_buffer_context(const char* buffer, size_t length) :
+    explicit const_buffer_context(const char* buffer, std::size_t length) :
         detail::buffer_context_base(buffer, new char[length], length) // don't worry about leaks, buffer_context_base can't throw
     {
     }
@@ -180,7 +180,7 @@ class istream_context final : public detail::context_base
 private:
 
     std::istream& m_stream;
-    size_t m_read_offset;
+    std::size_t m_read_offset;
     std::list<std::vector<char>> m_write_buffers;
 
 public:
@@ -208,7 +208,7 @@ public:
         }
     }
 
-    size_t read_offset() const
+    std::size_t read_offset() const
     {
         return m_read_offset;
     }
@@ -255,13 +255,13 @@ public:
 
 private:
 
-    size_t m_offset;
+    std::size_t m_offset;
     error_reason m_reason;
 
     template<typename Context>
-    static size_t get_offset(const Context& context)
+    static std::size_t get_offset(const Context& context)
     {
-        const size_t read_offset = context.read_offset();
+        const std::size_t read_offset = context.read_offset();
 
         return (read_offset != 0) ? (read_offset - 1) : 0;
     }
@@ -275,7 +275,7 @@ public:
     {
     }
 
-    size_t offset() const
+    std::size_t offset() const
     {
         return m_offset;
     }
@@ -314,7 +314,7 @@ namespace detail
 
 struct utf8_char
 {
-    uint8_t bytes[4];
+    std::uint8_t bytes[4];
 
     utf8_char()
     {
@@ -322,7 +322,7 @@ struct utf8_char
         std::fill_n(bytes, sizeof(bytes), 0);
     }
 
-    explicit utf8_char(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3)
+    explicit utf8_char(std::uint8_t b0, std::uint8_t b1, std::uint8_t b2, std::uint8_t b3)
     {
         bytes[0] = b0;
         bytes[1] = b1;
@@ -330,12 +330,12 @@ struct utf8_char
         bytes[3] = b3;
     }
 
-    uint8_t& operator[](size_t i)
+    std::uint8_t& operator[](std::size_t i)
     {
         return bytes[i];
     }
 
-    const uint8_t& operator[](size_t i) const
+    const std::uint8_t& operator[](std::size_t i) const
     {
         return bytes[i];
     }
@@ -356,9 +356,9 @@ struct encoding_error
 {
 };
 
-inline uint32_t utf16_to_utf32(uint16_t high, uint16_t low)
+inline std::uint32_t utf16_to_utf32(std::uint16_t high, std::uint16_t low)
 {
-    uint32_t result;
+    std::uint32_t result;
 
     if (high <= 0xD7FF || high >= 0xE000)
     {
@@ -392,7 +392,7 @@ inline uint32_t utf16_to_utf32(uint16_t high, uint16_t low)
     return result;
 }
 
-inline utf8_char utf32_to_utf8(uint32_t utf32_char)
+inline utf8_char utf32_to_utf8(std::uint32_t utf32_char)
 {
     utf8_char result;
 
@@ -427,7 +427,7 @@ inline utf8_char utf32_to_utf8(uint32_t utf32_char)
     return result;
 }
 
-inline utf8_char utf16_to_utf8(uint16_t high, uint16_t low)
+inline utf8_char utf16_to_utf8(std::uint16_t high, std::uint16_t low)
 {
     return utf32_to_utf8(utf16_to_utf32(high, low));
 }
@@ -500,11 +500,11 @@ inline double parse_double(const char* str)
     return result;
 }
 
-static const size_t UTF16_ESCAPE_SEQ_LENGTH = 4;
+static const std::size_t UTF16_ESCAPE_SEQ_LENGTH = 4;
 
-inline uint16_t parse_utf16_escape_sequence(const char* seq)
+inline std::uint16_t parse_utf16_escape_sequence(const char* seq)
 {
-    for (size_t i = 0; i < UTF16_ESCAPE_SEQ_LENGTH; i++)
+    for (std::size_t i = 0; i < UTF16_ESCAPE_SEQ_LENGTH; i++)
     {
         if (!isxdigit(seq[i]))
         {
@@ -512,13 +512,13 @@ inline uint16_t parse_utf16_escape_sequence(const char* seq)
         }
     }
 
-    return static_cast<uint16_t>(parse_long(seq, 16));
+    return static_cast<std::uint16_t>(parse_long(seq, 16));
 }
 
 template<typename Context>
 void write_utf8_char(Context& context, const utf8_char& c)
 {
-    for (size_t i = 0; i < sizeof(c.bytes); i++)
+    for (std::size_t i = 0; i < sizeof(c.bytes); i++)
     {
         const char byte = c[i];
         if ((i > 0) && (byte == 0))
@@ -544,8 +544,8 @@ void read_quoted_string(Context& context, bool skip_opening_quote = false)
 
     bool empty = true;
     char utf16_seq[UTF16_ESCAPE_SEQ_LENGTH + 1] = { 0 };
-    size_t utf16_seq_offset = 0;
-    uint16_t high_surrogate = 0;
+    std::size_t utf16_seq_offset = 0;
+    std::uint16_t high_surrogate = 0;
 
     char c;
 
@@ -614,7 +614,7 @@ void read_quoted_string(Context& context, bool skip_opening_quote = false)
             {
                 try
                 {
-                    const uint16_t code_unit = parse_utf16_escape_sequence(utf16_seq);
+                    const std::uint16_t code_unit = parse_utf16_escape_sequence(utf16_seq);
 
                     if (code_unit == 0 && high_surrogate == 0)
                     {
@@ -894,7 +894,7 @@ value parse_value_helper(Context& context, char& c, bool& must_read)
 template<typename Context, typename Handler>
 void parse_object(Context& context, Handler&& handler)
 {
-    const size_t nesting_level = context.nesting_level();
+    const std::size_t nesting_level = context.nesting_level();
     if (nesting_level > MJR_NESTING_LIMIT)
     {
         throw parse_error(context, parse_error::EXCEEDED_NESTING_LIMIT);
@@ -1012,7 +1012,7 @@ void parse_object(Context& context, Handler&& handler)
 template<typename Context, typename Handler>
 void parse_array(Context& context, Handler&& handler)
 {
-    const size_t nesting_level = context.nesting_level();
+    const std::size_t nesting_level = context.nesting_level();
     if (nesting_level > MJR_NESTING_LIMIT)
     {
         throw parse_error(context, parse_error::EXCEEDED_NESTING_LIMIT);

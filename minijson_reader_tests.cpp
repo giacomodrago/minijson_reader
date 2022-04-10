@@ -4,7 +4,7 @@
 
 #include <bitset>
 
-template<typename T, size_t Size>
+template<typename T, std::size_t Size>
 bool arrays_match(const T (&expected)[Size], const T (&actual)[Size])
 {
     return std::equal(expected, expected + Size, actual);
@@ -208,73 +208,73 @@ TEST(minijson_reader_detail, utf32_to_utf8)
 {
     // 1 byte
     {
-        const uint8_t expected[] = { 0x00, 0x00, 0x00, 0x00 };
+        const std::uint8_t expected[] = { 0x00, 0x00, 0x00, 0x00 };
         ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x000000).bytes));
     }
     {
-        const uint8_t expected[] = { 0x01, 0x00, 0x00, 0x00 };
+        const std::uint8_t expected[] = { 0x01, 0x00, 0x00, 0x00 };
         ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x000001).bytes));
     }
     {
-        const uint8_t expected[] = { 0x7E, 0x00, 0x00, 0x00 };
+        const std::uint8_t expected[] = { 0x7E, 0x00, 0x00, 0x00 };
         ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x00007E).bytes));
     }
     {
-        const uint8_t expected[] = { 0x7F, 0x00, 0x00, 0x00 };
+        const std::uint8_t expected[] = { 0x7F, 0x00, 0x00, 0x00 };
         ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x00007F).bytes));
     }
 
     // 2 bytes
     {
-        const uint8_t expected[] = { 0xC2, 0x80, 0x00, 0x00 };
+        const std::uint8_t expected[] = { 0xC2, 0x80, 0x00, 0x00 };
         ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x000080).bytes));
     }
     {
-        const uint8_t expected[] = { 0xC2, 0x81, 0x00, 0x00 };
+        const std::uint8_t expected[] = { 0xC2, 0x81, 0x00, 0x00 };
         ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x000081).bytes));
     }
     {
-        const uint8_t expected[] = { 0xDF, 0xBE, 0x00, 0x00 };
+        const std::uint8_t expected[] = { 0xDF, 0xBE, 0x00, 0x00 };
         ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x0007FE).bytes));
     }
     {
-        const uint8_t expected[] = { 0xDF, 0xBF, 0x00, 0x00 };
+        const std::uint8_t expected[] = { 0xDF, 0xBF, 0x00, 0x00 };
         ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x0007FF).bytes));
     }
 
     // 3 bytes
     {
-        const uint8_t expected[] = { 0xE0, 0xA0, 0x80, 0x00 };
+        const std::uint8_t expected[] = { 0xE0, 0xA0, 0x80, 0x00 };
         ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x000800).bytes));
     }
     {
-        const uint8_t expected[] = { 0xE0, 0xA0, 0x81, 0x00 };
+        const std::uint8_t expected[] = { 0xE0, 0xA0, 0x81, 0x00 };
         ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x000801).bytes));
     }
     {
-        const uint8_t expected[] = { 0xEF, 0xBF, 0xBE, 0x00 };
+        const std::uint8_t expected[] = { 0xEF, 0xBF, 0xBE, 0x00 };
         ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x00FFFE).bytes));
     }
     {
-        const uint8_t expected[] = { 0xEF, 0xBF, 0xBF, 0x00 };
+        const std::uint8_t expected[] = { 0xEF, 0xBF, 0xBF, 0x00 };
         ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x00FFFF).bytes));
     }
 
     // 4 bytes
     {
-        const uint8_t expected[] = { 0xF0, 0x90, 0x80, 0x80 };
+        const std::uint8_t expected[] = { 0xF0, 0x90, 0x80, 0x80 };
         ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x010000).bytes));
     }
     {
-        const uint8_t expected[] = { 0xF0, 0x90, 0x80, 0x81 };
+        const std::uint8_t expected[] = { 0xF0, 0x90, 0x80, 0x81 };
         ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x010001).bytes));
     }
     {
-        const uint8_t expected[] = { 0xF7, 0xBF, 0xBF, 0xBE };
+        const std::uint8_t expected[] = { 0xF7, 0xBF, 0xBF, 0xBE };
         ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x1FFFFE).bytes));
     }
     {
-        const uint8_t expected[] = { 0xF7, 0xBF, 0xBF, 0xBF };
+        const std::uint8_t expected[] = { 0xF7, 0xBF, 0xBF, 0xBF };
         ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x1FFFFF).bytes));
     }
 }
@@ -290,7 +290,7 @@ TEST(minijson_reader_detail, utf16_to_utf8)
     // Just one test case, since utf16_to_utf8 calls utf16_to_utf32 and utf32_to_utf8,
     // and other cases have been covered by previous tests
 
-    const uint8_t expected[] = { 0xF4, 0x8F, 0xBF, 0xBF };
+    const std::uint8_t expected[] = { 0xF4, 0x8F, 0xBF, 0xBF };
     ASSERT_TRUE(arrays_match(expected, minijson::detail::utf16_to_utf8(0xDBFF, 0xDFFF).bytes));
 }
 
@@ -493,9 +493,9 @@ TEST(minijson_reader_detail, read_quoted_string_skip_opening_quote)
     ASSERT_STREQ("asd", buffer_context.write_buffer());
 }
 
-template<size_t Length>
+template<std::size_t Length>
 void read_quoted_string_invalid_helper(
-    const char (&buffer)[Length], minijson::parse_error::error_reason expected_reason, size_t expected_offset, const char* expected_what)
+    const char (&buffer)[Length], minijson::parse_error::error_reason expected_reason, std::size_t expected_offset, const char* expected_what)
 {
     bool exception_thrown = false;
 
@@ -532,9 +532,9 @@ TEST(minijson_reader_detail, read_quoted_string_invalid)
 }
 
 
-template<size_t Length>
+template<std::size_t Length>
 void read_unquoted_value_invalid_helper(
-    const char (&buffer)[Length], minijson::parse_error::error_reason expected_reason, size_t expected_offset, const char* expected_what)
+    const char (&buffer)[Length], minijson::parse_error::error_reason expected_reason, std::size_t expected_offset, const char* expected_what)
 {
     bool exception_thrown = false;
 
@@ -630,7 +630,7 @@ TEST(minijson_reader, value_example)
 }
 
 template<typename Context>
-void parse_unquoted_value_invalid_helper(Context& context, size_t expected_offset)
+void parse_unquoted_value_invalid_helper(Context& context, std::size_t expected_offset)
 {
     bool exception_thrown = false;
 
@@ -1204,7 +1204,7 @@ TEST(minijson_reader, parse_array_single_elem2)
 
 struct parse_array_multiple_elems_handler : check_on_destroy_handler
 {
-    size_t counter;
+    std::size_t counter;
 
     parse_array_multiple_elems_handler() :
         counter(0)
@@ -1258,7 +1258,7 @@ TEST(minijson_reader, parse_array_multiple_elems)
 template<typename Context>
 struct parse_array_nested_handler : check_on_destroy_handler
 {
-    size_t counter;
+    std::size_t counter;
     Context& context;
 
     explicit parse_array_nested_handler(Context& context) :
@@ -1313,7 +1313,7 @@ struct parse_array_nested_handler : check_on_destroy_handler
 
         struct nested2_handler : check_on_destroy_handler
         {
-            size_t counter;
+            std::size_t counter;
             Context& context;
 
             explicit nested2_handler(Context& context) :
@@ -1408,7 +1408,7 @@ TEST(minijson_reader, parse_object_truncated)
 
     char buffer[] = "{\"str\":\"val\",\"int\":42,\"null\":null}";
 
-    for (size_t i = sizeof(buffer) - 2; i < sizeof(buffer); i--)
+    for (std::size_t i = sizeof(buffer) - 2; i < sizeof(buffer); i--)
     {
         buffer[i] = 0;
         minijson::const_buffer_context const_buffer_context(buffer, sizeof(buffer) - 1);
@@ -1472,7 +1472,7 @@ TEST(minijson_reader, parse_array_truncated)
 
     char buffer[] = "[\"val\",42,null]";
 
-    for (size_t i = sizeof(buffer) - 2; i < sizeof(buffer); i--)
+    for (std::size_t i = sizeof(buffer) - 2; i < sizeof(buffer); i--)
     {
         buffer[i] = 0;
         minijson::const_buffer_context const_buffer_context(buffer, sizeof(buffer) - 1);
@@ -1511,7 +1511,7 @@ TEST(minijson_reader, parse_array_truncated)
     }
 }
 
-template<size_t Length>
+template<std::size_t Length>
 void parse_object_invalid_helper(const char (&buffer)[Length], minijson::parse_error::error_reason expected_reason, const char* expected_what = NULL)
 {
     minijson::const_buffer_context const_buffer_context(buffer, sizeof(buffer) - 1);
@@ -1535,7 +1535,7 @@ void parse_object_invalid_helper(const char (&buffer)[Length], minijson::parse_e
     ASSERT_TRUE(exception_thrown);
 }
 
-template<size_t Length>
+template<std::size_t Length>
 void parse_object_invalid_helper2(const char (&buffer)[Length], minijson::parse_error::error_reason expected_reason, const char* expected_what = NULL)
 {
     minijson::const_buffer_context const_buffer_context(buffer, sizeof(buffer) - 1);
@@ -1559,7 +1559,7 @@ void parse_object_invalid_helper2(const char (&buffer)[Length], minijson::parse_
     ASSERT_TRUE(exception_thrown);
 }
 
-template<size_t Length>
+template<std::size_t Length>
 void parse_array_invalid_helper(const char (&buffer)[Length], minijson::parse_error::error_reason expected_reason, const char* expected_what = NULL)
 {
     minijson::const_buffer_context const_buffer_context(buffer, sizeof(buffer) - 1);
@@ -1583,7 +1583,7 @@ void parse_array_invalid_helper(const char (&buffer)[Length], minijson::parse_er
     ASSERT_TRUE(exception_thrown);
 }
 
-template<size_t Length>
+template<std::size_t Length>
 void parse_array_invalid_helper2(const char (&buffer)[Length], minijson::parse_error::error_reason expected_reason, const char* expected_what = NULL)
 {
     minijson::const_buffer_context const_buffer_context(buffer, sizeof(buffer) - 1);
