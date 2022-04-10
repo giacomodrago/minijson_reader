@@ -828,7 +828,7 @@ value parse_unquoted_value(const Context& context)
         {
             try
             {
-                //double_value = parse_double(buffer);
+                double_value = parse_double(buffer);
                 double_available = true;
             }
             catch (const number_parse_error&)
