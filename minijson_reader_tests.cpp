@@ -4,12 +4,6 @@
 
 #include <bitset>
 
-template<typename T, std::size_t Size>
-bool arrays_match(const T (&expected)[Size], const T (&actual)[Size])
-{
-    return std::equal(expected, expected + Size, actual);
-}
-
 template<typename Context>
 void test_context_helper(Context& context)
 {
@@ -157,28 +151,6 @@ TEST(minijson_reader, parse_error)
     }
 }
 
-TEST(minijson_reader_detail, utf8_quad)
-{
-    minijson::detail::utf8_char utf8_quad;
-    ASSERT_EQ(0U, utf8_quad[0]);
-    ASSERT_EQ(0U, utf8_quad[1]);
-    ASSERT_EQ(0U, utf8_quad[2]);
-    ASSERT_EQ(0U, utf8_quad[3]);
-
-    const minijson::detail::utf8_char utf8_quad1(0, 1, 2, 3);
-    ASSERT_EQ(0U, utf8_quad1[0]);
-    ASSERT_EQ(1U, utf8_quad1[1]);
-    ASSERT_EQ(2U, utf8_quad1[2]);
-    ASSERT_EQ(3U, utf8_quad1[3]);
-
-    minijson::detail::utf8_char utf8_quad2;
-
-    ASSERT_TRUE(utf8_quad == utf8_quad2);
-    ASSERT_TRUE(utf8_quad != utf8_quad1);
-    ASSERT_FALSE(utf8_quad != utf8_quad2);
-    ASSERT_FALSE(utf8_quad == utf8_quad1);
-}
-
 TEST(minijson_reader_detail, utf16_to_utf32)
 {
     // code points 0000 to D7FF and E000 to FFFF
@@ -208,74 +180,74 @@ TEST(minijson_reader_detail, utf32_to_utf8)
 {
     // 1 byte
     {
-        const std::uint8_t expected[] = { 0x00, 0x00, 0x00, 0x00 };
-        ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x000000).bytes));
+        const std::array<std::uint8_t, 4> expected { 0x00, 0x00, 0x00, 0x00 };
+        ASSERT_EQ(expected, minijson::detail::utf32_to_utf8(0x000000));
     }
     {
-        const std::uint8_t expected[] = { 0x01, 0x00, 0x00, 0x00 };
-        ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x000001).bytes));
+        const std::array<std::uint8_t, 4> expected { 0x01, 0x00, 0x00, 0x00 };
+        ASSERT_EQ(expected, minijson::detail::utf32_to_utf8(0x000001));
     }
     {
-        const std::uint8_t expected[] = { 0x7E, 0x00, 0x00, 0x00 };
-        ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x00007E).bytes));
+        const std::array<std::uint8_t, 4> expected { 0x7E, 0x00, 0x00, 0x00 };
+        ASSERT_EQ(expected, minijson::detail::utf32_to_utf8(0x00007E));
     }
     {
-        const std::uint8_t expected[] = { 0x7F, 0x00, 0x00, 0x00 };
-        ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x00007F).bytes));
+        const std::array<std::uint8_t, 4> expected { 0x7F, 0x00, 0x00, 0x00 };
+        ASSERT_EQ(expected, minijson::detail::utf32_to_utf8(0x00007F));
     }
 
     // 2 bytes
     {
-        const std::uint8_t expected[] = { 0xC2, 0x80, 0x00, 0x00 };
-        ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x000080).bytes));
+        const std::array<std::uint8_t, 4> expected { 0xC2, 0x80, 0x00, 0x00 };
+        ASSERT_EQ(expected, minijson::detail::utf32_to_utf8(0x000080));
     }
     {
-        const std::uint8_t expected[] = { 0xC2, 0x81, 0x00, 0x00 };
-        ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x000081).bytes));
+        const std::array<std::uint8_t, 4> expected { 0xC2, 0x81, 0x00, 0x00 };
+        ASSERT_EQ(expected, minijson::detail::utf32_to_utf8(0x000081));
     }
     {
-        const std::uint8_t expected[] = { 0xDF, 0xBE, 0x00, 0x00 };
-        ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x0007FE).bytes));
+        const std::array<std::uint8_t, 4> expected { 0xDF, 0xBE, 0x00, 0x00 };
+        ASSERT_EQ(expected, minijson::detail::utf32_to_utf8(0x0007FE));
     }
     {
-        const std::uint8_t expected[] = { 0xDF, 0xBF, 0x00, 0x00 };
-        ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x0007FF).bytes));
+        const std::array<std::uint8_t, 4> expected { 0xDF, 0xBF, 0x00, 0x00 };
+        ASSERT_EQ(expected, minijson::detail::utf32_to_utf8(0x0007FF));
     }
 
     // 3 bytes
     {
-        const std::uint8_t expected[] = { 0xE0, 0xA0, 0x80, 0x00 };
-        ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x000800).bytes));
+        const std::array<std::uint8_t, 4> expected { 0xE0, 0xA0, 0x80, 0x00 };
+        ASSERT_EQ(expected, minijson::detail::utf32_to_utf8(0x000800));
     }
     {
-        const std::uint8_t expected[] = { 0xE0, 0xA0, 0x81, 0x00 };
-        ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x000801).bytes));
+        const std::array<std::uint8_t, 4> expected { 0xE0, 0xA0, 0x81, 0x00 };
+        ASSERT_EQ(expected, minijson::detail::utf32_to_utf8(0x000801));
     }
     {
-        const std::uint8_t expected[] = { 0xEF, 0xBF, 0xBE, 0x00 };
-        ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x00FFFE).bytes));
+        const std::array<std::uint8_t, 4> expected { 0xEF, 0xBF, 0xBE, 0x00 };
+        ASSERT_EQ(expected, minijson::detail::utf32_to_utf8(0x00FFFE));
     }
     {
-        const std::uint8_t expected[] = { 0xEF, 0xBF, 0xBF, 0x00 };
-        ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x00FFFF).bytes));
+        const std::array<std::uint8_t, 4> expected { 0xEF, 0xBF, 0xBF, 0x00 };
+        ASSERT_EQ(expected, minijson::detail::utf32_to_utf8(0x00FFFF));
     }
 
     // 4 bytes
     {
-        const std::uint8_t expected[] = { 0xF0, 0x90, 0x80, 0x80 };
-        ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x010000).bytes));
+        const std::array<std::uint8_t, 4> expected { 0xF0, 0x90, 0x80, 0x80 };
+        ASSERT_EQ(expected, minijson::detail::utf32_to_utf8(0x010000));
     }
     {
-        const std::uint8_t expected[] = { 0xF0, 0x90, 0x80, 0x81 };
-        ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x010001).bytes));
+        const std::array<std::uint8_t, 4> expected { 0xF0, 0x90, 0x80, 0x81 };
+        ASSERT_EQ(expected, minijson::detail::utf32_to_utf8(0x010001));
     }
     {
-        const std::uint8_t expected[] = { 0xF7, 0xBF, 0xBF, 0xBE };
-        ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x1FFFFE).bytes));
+        const std::array<std::uint8_t, 4> expected { 0xF7, 0xBF, 0xBF, 0xBE };
+        ASSERT_EQ(expected, minijson::detail::utf32_to_utf8(0x1FFFFE));
     }
     {
-        const std::uint8_t expected[] = { 0xF7, 0xBF, 0xBF, 0xBF };
-        ASSERT_TRUE(arrays_match(expected, minijson::detail::utf32_to_utf8(0x1FFFFF).bytes));
+        const std::array<std::uint8_t, 4> expected { 0xF7, 0xBF, 0xBF, 0xBF };
+        ASSERT_EQ(expected, minijson::detail::utf32_to_utf8(0x1FFFFF));
     }
 }
 
@@ -290,8 +262,8 @@ TEST(minijson_reader_detail, utf16_to_utf8)
     // Just one test case, since utf16_to_utf8 calls utf16_to_utf32 and utf32_to_utf8,
     // and other cases have been covered by previous tests
 
-    const std::uint8_t expected[] = { 0xF4, 0x8F, 0xBF, 0xBF };
-    ASSERT_TRUE(arrays_match(expected, minijson::detail::utf16_to_utf8(0xDBFF, 0xDFFF).bytes));
+    const std::array<std::uint8_t, 4> expected { 0xF4, 0x8F, 0xBF, 0xBF };
+    ASSERT_EQ(expected, minijson::detail::utf16_to_utf8(0xDBFF, 0xDFFF));
 }
 
 TEST(minijson_reader_detail, parse_long)
@@ -429,11 +401,11 @@ static void test_write_utf8_char(minijson::detail::utf8_char c, const char* expe
 
 TEST(minijson_reader_detail, write_utf8_char)
 {
-    test_write_utf8_char(minijson::detail::utf8_char(0x00, 0x00, 0x00, 0x00), "");
-    test_write_utf8_char(minijson::detail::utf8_char(0xFF, 0x00, 0x00, 0x00), "\xFF___");
-    test_write_utf8_char(minijson::detail::utf8_char(0xFF, 0xFE, 0x00, 0x00), "\xFF\xFE__");
-    test_write_utf8_char(minijson::detail::utf8_char(0xFF, 0xFE, 0xFD, 0x00), "\xFF\xFE\xFD_");
-    test_write_utf8_char(minijson::detail::utf8_char(0xFF, 0xFE, 0xFD, 0xFC), "\xFF\xFE\xFD\xFC");
+    test_write_utf8_char(minijson::detail::utf8_char { 0x00, 0x00, 0x00, 0x00 }, "");
+    test_write_utf8_char(minijson::detail::utf8_char { 0xFF, 0x00, 0x00, 0x00 }, "\xFF___");
+    test_write_utf8_char(minijson::detail::utf8_char { 0xFF, 0xFE, 0x00, 0x00 }, "\xFF\xFE__");
+    test_write_utf8_char(minijson::detail::utf8_char { 0xFF, 0xFE, 0xFD, 0x00 }, "\xFF\xFE\xFD_");
+    test_write_utf8_char(minijson::detail::utf8_char { 0xFF, 0xFE, 0xFD, 0xFC }, "\xFF\xFE\xFD\xFC");
 }
 
 TEST(minijson_reader_detail, read_quoted_string_empty)

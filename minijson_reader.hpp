@@ -1,6 +1,7 @@
 #ifndef MINIJSON_READER_H
 #define MINIJSON_READER_H
 
+#include <array>
 #include <cctype>
 #include <cerrno>
 #include <climits>
@@ -333,46 +334,7 @@ public:
 namespace detail
 {
 
-struct utf8_char
-{
-    std::uint8_t bytes[4];
-
-    utf8_char()
-    {
-        // wanted use value-initialization, but couldn't because of a weird
-        // VS2013 warning
-        std::fill_n(bytes, sizeof(bytes), 0);
-    }
-
-    explicit utf8_char(
-        std::uint8_t b0, std::uint8_t b1, std::uint8_t b2, std::uint8_t b3)
-    {
-        bytes[0] = b0;
-        bytes[1] = b1;
-        bytes[2] = b2;
-        bytes[3] = b3;
-    }
-
-    std::uint8_t& operator[](std::size_t i)
-    {
-        return bytes[i];
-    }
-
-    const std::uint8_t& operator[](std::size_t i) const
-    {
-        return bytes[i];
-    }
-
-    bool operator==(const utf8_char& other) const
-    {
-        return std::equal(bytes, bytes + sizeof(bytes), other.bytes);
-    }
-
-    bool operator!=(const utf8_char& other) const
-    {
-        return !operator==(other);
-    }
-}; // struct utf8_char
+using utf8_char = std::array<std::uint8_t, 4>;
 
 // this exception is not to be propagated outside minijson
 struct encoding_error
@@ -418,7 +380,7 @@ inline std::uint32_t utf16_to_utf32(std::uint16_t high, std::uint16_t low)
 
 inline utf8_char utf32_to_utf8(std::uint32_t utf32_char)
 {
-    utf8_char result;
+    utf8_char result {};
 
     if      (utf32_char <= 0x00007F)
     {
@@ -547,7 +509,7 @@ inline std::uint16_t parse_utf16_escape_sequence(const char* seq)
 template<typename Context>
 void write_utf8_char(Context& context, const utf8_char& c)
 {
-    for (std::size_t i = 0; i < sizeof(c.bytes); i++)
+    for (std::size_t i = 0; i < 4; i++)
     {
         const char byte = c[i];
         if (i > 0 && byte == 0)
