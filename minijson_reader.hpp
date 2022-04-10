@@ -1,20 +1,18 @@
 #ifndef MINIJSON_READER_H
 #define MINIJSON_READER_H
 
-#include <cstdlib>
 #include <cctype>
-#include <cstdint>
-#include <climits>
-#include <cstring>
 #include <cerrno>
-
-#include <vector>
+#include <climits>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <istream>
 #include <list>
+#include <stdexcept>
 #include <string>
 #include <utility>
-
-#include <stdexcept>
-#include <istream>
+#include <vector>
 
 #ifndef MJR_NESTING_LIMIT
 #define MJR_NESTING_LIMIT 32
