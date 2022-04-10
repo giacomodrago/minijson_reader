@@ -439,7 +439,7 @@ struct number_parse_error
 
 inline long parse_long(const char* str, int base = 10)
 {
-    if ((str == NULL) || (*str == 0) || isspace(str[0])) // we don't accept empty strings or strings with leading spaces
+    if ((str == NULL) || (*str == 0) || std::isspace(str[0])) // we don't accept empty strings or strings with leading spaces
     {
         throw number_parse_error();
     }
@@ -474,7 +474,7 @@ inline double parse_double(const char* str)
     // we perform this check to reject hex numbers (supported in C++11) and string with leading spaces
     for (const char* c = str; *c != 0; c++)
     {
-        if (!(isdigit(*c) || (*c == '+') || (*c == '-') || (*c == '.') || (*c == 'e') || (*c == 'E')))
+        if (!(std::isdigit(*c) || (*c == '+') || (*c == '-') || (*c == '.') || (*c == 'e') || (*c == 'E')))
         {
             throw number_parse_error();
         }
@@ -506,7 +506,7 @@ inline std::uint16_t parse_utf16_escape_sequence(const char* seq)
 {
     for (std::size_t i = 0; i < UTF16_ESCAPE_SEQ_LENGTH; i++)
     {
-        if (!isxdigit(seq[i]))
+        if (!std::isxdigit(seq[i]))
         {
             throw encoding_error();
         }
@@ -677,7 +677,7 @@ char read_unquoted_value(Context& context, char first_char = 0)
 
     char c;
 
-    while (((c = context.read()) != 0) && (c != ',') && (c != '}') && (c != ']') && !isspace(c))
+    while (((c = context.read()) != 0) && (c != ',') && (c != '}') && (c != ']') && !std::isspace(c))
     {
         context.write(c);
     }
@@ -776,15 +776,15 @@ value parse_unquoted_value(const Context& context)
 {
     const char* const buffer = context.write_buffer();
 
-    if (strcmp(buffer, "true") == 0)
+    if (std::strcmp(buffer, "true") == 0)
     {
         return value(Boolean, buffer, 1, true, 1.0, true);
     }
-    else if (strcmp(buffer, "false") == 0)
+    else if (std::strcmp(buffer, "false") == 0)
     {
         return value(Boolean, buffer, 0, true, 0.0, true);
     }
-    else if (strcmp(buffer, "null") == 0)
+    else if (std::strcmp(buffer, "null") == 0)
     {
         return value(Null, buffer, 0, false, 0.0, false);
     }
@@ -933,7 +933,7 @@ void parse_object(Context& context, Handler&& handler)
 
         must_read = true;
 
-        if (isspace(c)) // skip whitespace
+        if (std::isspace(c)) // skip whitespace
         {
             continue;
         }
@@ -1047,7 +1047,7 @@ void parse_array(Context& context, Handler&& handler)
 
         must_read = true;
 
-        if (isspace(c)) // skip whitespace
+        if (std::isspace(c)) // skip whitespace
         {
             continue;
         }
@@ -1169,7 +1169,7 @@ public:
     template<typename Handler>
     dispatch& operator>>(Handler&& handler) const
     {
-        if (!m_dispatch.m_handled && ((m_field_name == NULL) || (strcmp(m_dispatch.m_field_name, m_field_name) == 0)))
+        if (!m_dispatch.m_handled && ((m_field_name == NULL) || (std::strcmp(m_dispatch.m_field_name, m_field_name) == 0)))
         {
             handler();
             m_dispatch.m_handled = true;
