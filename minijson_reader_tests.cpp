@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <bitset>
+#include <climits>
 
 template<typename Context>
 void test_context_helper(Context& context)
@@ -271,10 +272,8 @@ TEST(minijson_reader_detail, parse_long)
     ASSERT_EQ(0, minijson::detail::parse_long("0"));
     ASSERT_EQ(42, minijson::detail::parse_long("42"));
     ASSERT_EQ(-42, minijson::detail::parse_long("-42"));
-    ASSERT_EQ(42, minijson::detail::parse_long("+42"));
     ASSERT_EQ(42, minijson::detail::parse_long("042"));
     ASSERT_EQ(255, minijson::detail::parse_long("ff", 16));
-    ASSERT_EQ(255, minijson::detail::parse_long("0xff", 16));
     ASSERT_EQ(255, minijson::detail::parse_long("0ff", 16));
 
     char buf[64];
@@ -314,7 +313,6 @@ TEST(minijson_reader_detail, parse_double)
     ASSERT_DOUBLE_EQ(0, minijson::detail::parse_double("0"));
     ASSERT_DOUBLE_EQ(42, minijson::detail::parse_double("42"));
     ASSERT_DOUBLE_EQ(-42, minijson::detail::parse_double("-42"));
-    ASSERT_DOUBLE_EQ(42, minijson::detail::parse_double("+42"));
     ASSERT_DOUBLE_EQ(42, minijson::detail::parse_double("042"));
     ASSERT_DOUBLE_EQ(42.42, minijson::detail::parse_double("42.42"));
     ASSERT_DOUBLE_EQ(42.42E+01, minijson::detail::parse_double("42.42E+01"));
