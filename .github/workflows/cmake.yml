@@ -43,4 +43,4 @@ jobs:
 
     - name: Test with valgrind
       working-directory: ${{github.workspace}}/build
-      run: valgrind --error-exitcode=42 --leak-check=full ./minijson_reader_tests --gtest_brief=1
+      run: valgrind --error-exitcode=42 --leak-check=full ./minijson_reader_tests
