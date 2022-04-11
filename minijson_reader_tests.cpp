@@ -2254,7 +2254,7 @@ TEST(minijson_dispatch, parse_object)
 {
     char json_obj[] =
         "{ \"field1\": 42, \"array\" : [ 1, 2, 3 ], \"field2\": \"asd\", "
-        "\"nested\" : { \"field1\" : 42.0, \"field2\" : true, "
+        "\"nested\" : \t\r { \"field1\" : 42.0, \"field2\" : true, "
         "\"ignored_field\" : 0, \"ignored_object\" : {\"a\":[0]} },"
         "\"ignored_array\" : [4, 2, {\"a\":5}, [7]] }";
 
