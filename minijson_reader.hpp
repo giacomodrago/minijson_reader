@@ -757,6 +757,12 @@ std::string_view read_quoted_string(
     return writer.finalize();
 }
 
+// Tells whether a character is acceptable JSON whitespace to separate tokens
+inline bool is_whitespace(const char c)
+{
+    return c == ' ' || c == '\n' || c == '\r' || c == '\t';
+}
+
 // Reads primitive values that are not between quotes (null, bools and numbers).
 // Returns the value in raw text form and its termination character.
 template<typename Context>
@@ -774,7 +780,7 @@ read_unquoted_value(Context& context, const char first_char = 0)
 
     while (
         (c = context.read()) != 0 && c != ',' && c != '}' && c != ']' &&
-        !std::isspace(c))
+        !is_whitespace(c))
     {
         writer.write(c);
     }
@@ -1055,7 +1061,7 @@ void parse_object(Context& context, Handler&& handler)
 
         must_read = true;
 
-        if (std::isspace(c)) // skip whitespace
+        if (detail::is_whitespace(c))
         {
             continue;
         }
@@ -1174,7 +1180,7 @@ void parse_array(Context& context, Handler&& handler)
 
         must_read = true;
 
-        if (std::isspace(c)) // skip whitespace
+        if (detail::is_whitespace(c))
         {
             continue;
         }
