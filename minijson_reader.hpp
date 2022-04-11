@@ -6,6 +6,7 @@
 #include <charconv>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <istream>
 #include <list>
@@ -40,39 +41,34 @@ public:
 
 private:
 
-    context_nested_status m_nested_status;
-    std::size_t m_nesting_level;
+    context_nested_status m_nested_status = NESTED_STATUS_NONE;
+    std::size_t m_nesting_level = 0;
 
 public:
 
-    context_base()
-    : m_nested_status(NESTED_STATUS_NONE)
-    , m_nesting_level(0)
-    {
-    }
-
+    explicit context_base() noexcept = default;
     context_base(const context_base&) = delete;
     context_base(context_base&&) = delete;
     context_base& operator=(const context_base&) = delete;
     context_base& operator=(context_base&&) = delete;
 
-    char nested_status() const
+    context_nested_status nested_status() const noexcept
     {
         return m_nested_status;
     }
 
-    void begin_nested(context_nested_status nested_status)
+    void begin_nested(const context_nested_status nested_status) noexcept
     {
         m_nested_status = nested_status;
         m_nesting_level++;
     }
 
-    void reset_nested_status()
+    void reset_nested_status() noexcept
     {
         m_nested_status = NESTED_STATUS_NONE;
     }
 
-    void end_nested()
+    void end_nested() noexcept
     {
         if (m_nesting_level > 0)
         {
@@ -80,7 +76,7 @@ public:
         }
     }
 
-    std::size_t nesting_level() const
+    std::size_t nesting_level() const noexcept
     {
         return m_nesting_level;
     }
@@ -93,27 +89,24 @@ protected:
     const char* m_read_buffer;
     char* m_write_buffer;
     std::size_t m_length;
-    std::size_t m_read_offset;
-    std::size_t m_write_offset;
-    const char* m_current_write_buffer;
+    std::size_t m_read_offset = 0;
+    std::size_t m_write_offset = 0;
+    const char* m_current_write_buffer = nullptr;
 
     explicit buffer_context_base(
-        const char* read_buffer,
-        char* write_buffer,
-        std::size_t length)
+        const char* const read_buffer,
+        char* const write_buffer,
+        const std::size_t length) noexcept
     : m_read_buffer(read_buffer)
     , m_write_buffer(write_buffer)
     , m_length(length)
-    , m_read_offset(0)
-    , m_write_offset(0)
-    , m_current_write_buffer(NULL)
     {
         new_write_buffer();
     }
 
 public:
 
-    char read()
+    char read() noexcept
     {
         if (m_read_offset >= m_length)
         {
@@ -123,28 +116,32 @@ public:
         return m_read_buffer[m_read_offset++];
     }
 
-    std::size_t read_offset() const
+    std::size_t read_offset() const noexcept
     {
         return m_read_offset;
     }
 
-    void new_write_buffer()
+    void new_write_buffer() noexcept
     {
         m_current_write_buffer = m_write_buffer + m_write_offset;
     }
 
-    void write(char c)
+    void write(const char c) noexcept
     {
         if (m_write_offset >= m_read_offset)
         {
-            throw std::runtime_error(
-                "Invalid write call, please file a bug report");
+            // This is VERY bad.
+            // If we reach this line, then either the library contains a most
+            // serious bug, or the memory is hopelessly corrupted. Better to
+            // fail fast and get a crash dump. If this happens and you can
+            // prove it's not the client's fault, please do file a bug report.
+            std::abort(); // LCOV_EXCL_LINE
         }
 
         m_write_buffer[m_write_offset++] = c;
     }
 
-    const char* write_buffer() const
+    const char* write_buffer() const noexcept
     {
         return m_current_write_buffer;
     }
@@ -156,7 +153,9 @@ class buffer_context final : public detail::buffer_context_base
 {
 public:
 
-    explicit buffer_context(char* buffer, std::size_t length)
+    explicit buffer_context(
+        char* const buffer,
+        const std::size_t length) noexcept
     : detail::buffer_context_base(buffer, buffer, length)
     {
     }
@@ -166,13 +165,15 @@ class const_buffer_context final : public detail::buffer_context_base
 {
 public:
 
-    explicit const_buffer_context(const char* buffer, std::size_t length)
+    explicit const_buffer_context(
+        const char* const buffer,
+        const std::size_t length)
     : detail::buffer_context_base(buffer, new char[length], length)
     // don't worry about leaks, buffer_context_base can't throw
     {
     }
 
-    ~const_buffer_context()
+    ~const_buffer_context() noexcept
     {
         delete[] m_write_buffer;
     }
@@ -183,14 +184,13 @@ class istream_context final : public detail::context_base
 private:
 
     std::istream& m_stream;
-    std::size_t m_read_offset;
+    std::size_t m_read_offset = 0;
     std::list<std::vector<char>> m_write_buffers;
 
 public:
 
     explicit istream_context(std::istream& stream)
     : m_stream(stream)
-    , m_read_offset(0)
     {
         new_write_buffer();
     }
@@ -211,17 +211,17 @@ public:
         }
     }
 
-    std::size_t read_offset() const
+    std::size_t read_offset() const noexcept
     {
         return m_read_offset;
     }
 
     void new_write_buffer()
     {
-        m_write_buffers.push_back(std::vector<char>());
+        m_write_buffers.emplace_back();
     }
 
-    void write(char c)
+    void write(const char c)
     {
         m_write_buffers.back().push_back(c);
     }
@@ -229,11 +229,11 @@ public:
     // This method to retrieve the address of the write buffer MUST be called
     // AFTER all the calls to write() for the current write buffer have been
     // performed
-    const char* write_buffer() const
+    const char* write_buffer() const noexcept
     {
-        return !m_write_buffers.back().empty()
-            ? &m_write_buffers.back()[0]
-            : NULL;
+        const std::vector<char>& buffer = m_write_buffers.back();
+
+        return !buffer.empty() ? buffer.data() : nullptr;
     }
 }; // class istream_context
 
@@ -265,7 +265,7 @@ private:
     error_reason m_reason;
 
     template<typename Context>
-    static std::size_t get_offset(const Context& context)
+    static std::size_t get_offset(const Context& context) noexcept
     {
         const std::size_t read_offset = context.read_offset();
 
@@ -275,23 +275,25 @@ private:
 public:
 
     template<typename Context>
-    explicit parse_error(const Context& context, error_reason reason)
+    explicit parse_error(
+        const Context& context,
+        const error_reason reason) noexcept
     : m_offset(get_offset(context))
     , m_reason(reason)
     {
     }
 
-    std::size_t offset() const
+    std::size_t offset() const noexcept
     {
         return m_offset;
     }
 
-    error_reason reason() const
+    error_reason reason() const noexcept
     {
         return m_reason;
     }
 
-    const char* what() const throw()
+    const char* what() const noexcept override
     {
         switch (m_reason)
         {
@@ -377,7 +379,7 @@ inline std::uint32_t utf16_to_utf32(std::uint16_t high, std::uint16_t low)
     return result;
 }
 
-inline utf8_char utf32_to_utf8(std::uint32_t utf32_char)
+inline utf8_char utf32_to_utf8(const std::uint32_t utf32_char)
 {
     utf8_char result {};
 
@@ -412,7 +414,9 @@ inline utf8_char utf32_to_utf8(std::uint32_t utf32_char)
     return result;
 }
 
-inline utf8_char utf16_to_utf8(std::uint16_t high, std::uint16_t low)
+inline utf8_char utf16_to_utf8(
+    const std::uint16_t high,
+    const std::uint16_t low)
 {
     return utf32_to_utf8(utf16_to_utf32(high, low));
 }
@@ -422,7 +426,7 @@ struct number_parse_error
 {
 };
 
-inline long parse_long(const char* str, int base = 10)
+inline long parse_long(const char* const str, const int base = 10)
 {
     // FIXME: this is useless work as the length of the string is already known,
     // it just needs to be made available here
@@ -442,7 +446,7 @@ inline long parse_long(const char* str, int base = 10)
     return result;
 }
 
-inline double parse_double(const char* str)
+inline double parse_double(const char* const str)
 {
     // Find the end of the string, while also performing a check on the
     // characters to make sure we reject NaN, INF, and whatever other special
@@ -471,9 +475,9 @@ inline double parse_double(const char* str)
     return result;
 }
 
-static const std::size_t UTF16_ESCAPE_SEQ_LENGTH = 4;
+inline constexpr std::size_t UTF16_ESCAPE_SEQ_LENGTH = 4;
 
-inline std::uint16_t parse_utf16_escape_sequence(const char* seq)
+inline std::uint16_t parse_utf16_escape_sequence(const char* const seq)
 {
     for (std::size_t i = 0; i < UTF16_ESCAPE_SEQ_LENGTH; i++)
     {
@@ -502,7 +506,7 @@ void write_utf8_char(Context& context, const utf8_char& c)
 }
 
 template<typename Context>
-void read_quoted_string(Context& context, bool skip_opening_quote = false)
+void read_quoted_string(Context& context, const bool skip_opening_quote = false)
 {
     enum
     {
@@ -648,7 +652,7 @@ void read_quoted_string(Context& context, bool skip_opening_quote = false)
         case CLOSED: // to silence compiler warnings
 
             throw std::runtime_error(
-                "This line should never be reached, "
+                "[minijson_reader] this line should never be reached, "
                 "please file a bug report"); // LCOV_EXCL_LINE
         }
     }
@@ -667,7 +671,7 @@ void read_quoted_string(Context& context, bool skip_opening_quote = false)
 
 // reads any value that is not a string (or an object/array)
 template<typename Context>
-char read_unquoted_value(Context& context, char first_char = 0)
+char read_unquoted_value(Context& context, const char first_char = 0)
 {
     if (first_char != 0)
     {
@@ -709,61 +713,75 @@ class value final
 {
 private:
 
-    value_type m_type;
-    bool m_long_available;
-    bool m_double_available;
-    const char* m_buffer;
-    long m_long_value;
-    double m_double_value;
+    value_type m_type = Null;
+    const char* m_buffer = "";
+    long m_long_value = 0;
+    bool m_long_available = false;
+    double m_double_value = 0.0;
+    bool m_double_available = false;
 
 public:
 
-    explicit value(value_type type = Null,
-                   const char* buffer = "",
-                   long long_value = 0,
-                   bool long_available = false,
-                   double double_value = 0.0,
-                   bool double_available = false)
+    explicit value() noexcept = default;
+
+    explicit value(const value_type type) noexcept
     : m_type(type)
-    , m_long_available(long_available)
-    , m_double_available(double_available)
-    , m_buffer(buffer)
-    , m_long_value(long_value)
-    , m_double_value(double_value)
     {
     }
 
-    value_type type() const
+    explicit value(const value_type type, const char* const buffer) noexcept
+    : m_type(type)
+    , m_buffer(buffer)
+    {
+    }
+
+    explicit value(
+        const value_type type,
+        const char* const buffer,
+        const long long_value,
+        const bool long_available,
+        const double double_value,
+        const bool double_available) noexcept
+    : m_type(type)
+    , m_buffer(buffer)
+    , m_long_value(long_value)
+    , m_long_available(long_available)
+    , m_double_value(double_value)
+    , m_double_available(double_available)
+    {
+    }
+
+    value_type type() const noexcept
     {
         return m_type;
     }
 
-    const char* as_string() const
+    const char* as_string() const noexcept
     {
         return m_buffer;
     }
 
-    long as_long() const
+    long as_long() const noexcept
     {
         return m_long_value;
     }
 
-    bool long_available() const
+    bool long_available() const noexcept
     {
         return m_long_available;
     }
 
-    bool as_bool() const
+    bool as_bool() const noexcept
     {
-        return (m_long_value) ? true : false; // to avoid VS2013 warnings
+        return static_cast<bool>(m_long_value);
     }
 
-    double as_double() const
+    double as_double() const noexcept
     {
         return m_double_value;
     }
 
-    bool double_available() const
+    bool double_available() const noexcept
     {
         return m_double_available;
     }
@@ -787,7 +805,7 @@ value parse_unquoted_value(const Context& context)
     }
     else if (std::strcmp(buffer, "null") == 0)
     {
-        return value(Null, buffer, 0, false, 0.0, false);
+        return value(Null, buffer);
     }
     else
     {
@@ -827,34 +845,37 @@ value parse_unquoted_value(const Context& context)
 }
 
 template<typename Context>
-std::pair<value, char> read_value(Context& context, char first_char)
+std::pair<value, char> read_value(Context& context, const char first_char)
 {
     if (first_char == '{')
     {
-        return std::make_pair(value(Object), 0);
+        return {value(Object), 0};
     }
     else if (first_char == '[')
     {
-        return std::make_pair(value(Array), 0);
+        return {value(Array), 0};
     }
     else if (first_char == '"') // quoted string
     {
         context.new_write_buffer();
         read_quoted_string(context, true);
 
-        return std::make_pair(value(String, context.write_buffer()), 0);
+        return {value(String, context.write_buffer()), 0};
     }
     else // unquoted value
     {
         context.new_write_buffer();
         const char ending_char = read_unquoted_value(context, first_char);
 
-        return std::make_pair(parse_unquoted_value(context), ending_char);
+        return {parse_unquoted_value(context), ending_char};
     }
 }
 
 template<typename Context>
-void parse_init_helper(const Context& context, char& c, bool& must_read)
+void parse_init_helper(
+    const Context& context,
+    char& c,
+    bool& must_read) noexcept
 {
     switch (context.nested_status())
     {
@@ -879,7 +900,7 @@ value parse_value_helper(Context& context, char& c, bool& must_read)
     const std::pair<value, char> read_value_result =
         detail::read_value(context, c);
 
-    const value v = read_value_result.first;
+    const value& v = read_value_result.first;
 
     if (v.type() == Object)
     {
@@ -965,7 +986,7 @@ void parse_object(Context& context, Handler&& handler)
                 state = END;
                 break;
             }
-            // intentional fall-through
+            [[fallthrough]];
 
         case FIELD_NAME:
             if (c != '"')
@@ -1010,14 +1031,14 @@ void parse_object(Context& context, Handler&& handler)
         case END:
 
             throw std::runtime_error(
-                "This line should never be reached, "
+                "[minijson_reader] this line should never be reached, "
                 "please file a bug report"); // LCOV_EXCL_LINE
         }
 
         if (c == 0)
         {
             throw std::runtime_error(
-                "This line should never be reached, "
+                "[minijson_reader] this line should never be reached, "
                 "please file a bug report"); // LCOV_EXCL_LINE
         }
     }
@@ -1086,7 +1107,7 @@ void parse_array(Context& context, Handler&& handler)
                 state = END;
                 break;
             }
-            // intentional fall-through
+            [[fallthrough]];
 
         case VALUE:
             handler(parse_value_helper(context, c, must_read));
@@ -1112,14 +1133,14 @@ void parse_array(Context& context, Handler&& handler)
         case END:
 
             throw std::runtime_error(
-                "This line should never be reached, "
+                "[minijson_reader] this line should never be reached, "
                 "please file a bug report"); // LCOV_EXCL_LINE
         }
 
         if (c == 0)
         {
             throw std::runtime_error(
-                "This line should never be reached, "
+                "[minijson_reader] this line should never be reached, "
                 "please file a bug report"); // LCOV_EXCL_LINE
         }
     }
@@ -1141,19 +1162,17 @@ class dispatch
 private:
 
     const char* m_field_name;
-    bool m_handled;
+    bool m_handled = false;
 
 public:
 
-    explicit dispatch(const char* field_name)
+    explicit dispatch(const char* const field_name) noexcept
     : m_field_name(field_name)
-    , m_handled(false)
     {
     }
 
-    explicit dispatch(const std::string& field_name)
-    : m_field_name(field_name.c_str())
-    , m_handled(false)
+    explicit dispatch(const std::string& field_name) noexcept
+    : dispatch(field_name.c_str())
     {
     }
 
@@ -1162,8 +1181,8 @@ public:
     dispatch& operator=(const dispatch&) = delete;
     dispatch& operator=(dispatch&&) = delete;
 
-    detail::dispatch_rule operator<<(const char* field_name);
-    detail::dispatch_rule operator<<(const std::string& field_name);
+    detail::dispatch_rule operator<<(const char* field_name) noexcept;
+    detail::dispatch_rule operator<<(const std::string& field_name) noexcept;
 }; // class dispatch
 
 namespace detail
@@ -1178,14 +1197,16 @@ private:
 
 public:
 
-    explicit dispatch_rule(dispatch& parent_dispatch, const char* field_name)
-    : m_dispatch(parent_dispatch)
+    explicit dispatch_rule(
+        dispatch& dispatch,
+        const char* const field_name) noexcept
+    : m_dispatch(dispatch)
     , m_field_name(field_name)
     {
     }
 
     dispatch_rule(const dispatch_rule&) = delete;
-    dispatch_rule(dispatch_rule&&) = default;
+    dispatch_rule(dispatch_rule&&) noexcept = default;
     dispatch_rule& operator=(const dispatch_rule&) = delete;
     dispatch_rule& operator=(dispatch_rule&&) = delete;
 
@@ -1193,7 +1214,7 @@ public:
     dispatch& operator>>(Handler&& handler) const
     {
         if (!m_dispatch.m_handled &&
-            (m_field_name == NULL ||
+            (m_field_name == nullptr ||
              std::strcmp(m_dispatch.m_field_name, m_field_name) == 0))
         {
             handler();
@@ -1213,7 +1234,7 @@ private:
 
 public:
 
-    explicit ignore(Context& context)
+    explicit ignore(Context& context) noexcept
     : m_context(context)
     {
     }
@@ -1223,17 +1244,17 @@ public:
     ignore& operator=(const ignore&) = delete;
     ignore& operator=(ignore&&) = delete;
 
-    void operator()(const char*, value)
+    void operator()(const char*, const value&) const
     {
-        operator()();
+        (*this)();
     }
 
-    void operator()(value)
+    void operator()(const value&) const
     {
-        operator()();
+        (*this)();
     }
 
-    void operator()()
+    void operator()() const
     {
         switch (m_context.nested_status())
         {
@@ -1251,17 +1272,19 @@ public:
 
 } // namespace detail
 
-inline detail::dispatch_rule dispatch::operator<<(const char* field_name)
+inline detail::dispatch_rule dispatch::operator<<(
+    const char* const field_name) noexcept
 {
     return detail::dispatch_rule(*this, field_name);
 }
 
-inline detail::dispatch_rule dispatch::operator<<(const std::string& field_name)
+inline detail::dispatch_rule dispatch::operator<<(
+    const std::string& field_name) noexcept
 {
-    return operator<<(field_name.c_str());
+    return *this << field_name.c_str();
 }
 
-static const char* const any = NULL;
+inline constexpr const char* any = nullptr;
 
 template<typename Context>
 void ignore(Context& context)

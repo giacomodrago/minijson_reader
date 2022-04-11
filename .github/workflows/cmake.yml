@@ -48,4 +48,4 @@ jobs:
 
     - name: Test with valgrind
       working-directory: ${{github.workspace}}/build
-      run: valgrind --error-exitcode=42 --leak-check=full ./minijson_reader_tests
+      run: valgrind --child-silent-after-fork=yes --error-exitcode=42 --leak-check=full ./minijson_reader_tests
