@@ -8,6 +8,7 @@
 template<typename Context>
 void test_context_helper(Context& context)
 {
+    context.start_new_token();
     bool loop = true;
     while (loop)
     {
@@ -363,7 +364,8 @@ static void test_write_utf8_char(std::array<std::uint8_t, 4> c, const char* expe
     buffer_context.read();
     buffer_context.read();
 
-    minijson::detail::write_utf8_char(buffer_context, c);
+    minijson::detail::token_writer token_writer(buffer_context);
+    minijson::detail::write_utf8_char(token_writer, c);
     ASSERT_STREQ(expected_str, buf);
 }
 
@@ -503,7 +505,7 @@ TEST(minijson_reader_detail, read_unquoted_value_comma_terminated)
 {
     char buffer[] = "42.42,";
     minijson::buffer_context buffer_context(buffer, sizeof(buffer));
-    ASSERT_EQ(',', minijson::detail::read_unquoted_value(buffer_context));
+    ASSERT_EQ(',', minijson::detail::read_unquoted_value(buffer_context).second);
     ASSERT_STREQ("42.42", buffer_context.current_token());
 }
 
@@ -511,7 +513,7 @@ TEST(minijson_reader_detail, read_unquoted_value_curly_bracket_terminated)
 {
     char buffer[] = "42.42E+104}";
     minijson::buffer_context buffer_context(buffer, sizeof(buffer));
-    ASSERT_EQ('}', minijson::detail::read_unquoted_value(buffer_context));
+    ASSERT_EQ('}', minijson::detail::read_unquoted_value(buffer_context).second);
     ASSERT_STREQ("42.42E+104", buffer_context.current_token());
 }
 
@@ -519,7 +521,7 @@ TEST(minijson_reader_detail, read_unquoted_value_square_bracket_terminated)
 {
     char buffer[] = "42.42]";
     minijson::buffer_context buffer_context(buffer, sizeof(buffer));
-    ASSERT_EQ(']', minijson::detail::read_unquoted_value(buffer_context));
+    ASSERT_EQ(']', minijson::detail::read_unquoted_value(buffer_context).second);
     ASSERT_STREQ("42.42", buffer_context.current_token());
 }
 
@@ -527,7 +529,7 @@ TEST(minijson_reader_detail, read_unquoted_value_whitespace_terminated)
 {
     char buffer[] = "true\t";
     minijson::buffer_context buffer_context(buffer, sizeof(buffer));
-    ASSERT_EQ('\t', minijson::detail::read_unquoted_value(buffer_context));
+    ASSERT_EQ('\t', minijson::detail::read_unquoted_value(buffer_context).second);
     ASSERT_STREQ("true", buffer_context.current_token());
 }
 
@@ -541,7 +543,7 @@ TEST(minijson_reader_detail, read_unquoted_value_first_char)
     char buffer[] = "true\t";
     minijson::buffer_context buffer_context(buffer, sizeof(buffer));
     buffer_context.read();
-    ASSERT_EQ('\t', minijson::detail::read_unquoted_value(buffer_context, 't'));
+    ASSERT_EQ('\t', minijson::detail::read_unquoted_value(buffer_context, 't').second);
     ASSERT_STREQ("true", buffer_context.current_token());
 }
 
@@ -549,7 +551,7 @@ TEST(minijson_reader, value_default_constructed)
 {
     const minijson::value value;
     ASSERT_EQ(minijson::Null, value.type());
-    ASSERT_STREQ("", value.as_string());
+    ASSERT_EQ("", value.as_string());
     ASSERT_EQ(0, value.as_long());
     ASSERT_FALSE(value.as_bool());
     ASSERT_DOUBLE_EQ(0.0, value.as_double());
@@ -561,7 +563,7 @@ TEST(minijson_reader, value_example)
 {
     const minijson::value value(minijson::Number, "42.42", 42, true, 42.42, true);
     ASSERT_EQ(minijson::Number, value.type());
-    ASSERT_STREQ("42.42", value.as_string());
+    ASSERT_EQ("42.42", value.as_string());
     ASSERT_EQ(42, value.as_long());
     ASSERT_TRUE(value.as_bool());
     ASSERT_DOUBLE_EQ(42.42, value.as_double());
@@ -574,9 +576,11 @@ void parse_unquoted_value_invalid_helper(Context& context, std::size_t expected_
 {
     bool exception_thrown = false;
 
+    const std::string_view token =
+        minijson::detail::read_unquoted_value(context).first;
     try
     {
-        minijson::detail::parse_unquoted_value(context);
+        minijson::detail::parse_unquoted_value(context, token);
     }
     catch (const minijson::parse_error& parse_error)
     {
@@ -594,7 +598,6 @@ TEST(minijson_reader_detail, parse_unquoted_value_whitespace)
 {
     char buffer[] = "  42";
     minijson::buffer_context buffer_context(buffer, sizeof(buffer));
-    read_unquoted_value(buffer_context);
     parse_unquoted_value_invalid_helper(buffer_context, 0);
 }
 
@@ -602,11 +605,12 @@ TEST(minijson_reader_detail, parse_unquoted_value_true)
 {
     char buffer[] = "true  ";
     minijson::buffer_context buffer_context(buffer, sizeof(buffer) - 1);
-    minijson::detail::read_unquoted_value(buffer_context);
+    const std::string_view token =
+        minijson::detail::read_unquoted_value(buffer_context).first;
 
-    const minijson::value value = minijson::detail::parse_unquoted_value(buffer_context);
+    const minijson::value value = minijson::detail::parse_unquoted_value(buffer_context, token);
     ASSERT_EQ(minijson::Boolean, value.type());
-    ASSERT_STREQ("true",         value.as_string());
+    ASSERT_EQ("true",            value.as_string());
     ASSERT_EQ(1,                 value.as_long());
     ASSERT_TRUE(                 value.as_bool());
     ASSERT_DOUBLE_EQ(1.0,        value.as_double());
@@ -618,11 +622,12 @@ TEST(minijson_reader_detail, parse_unquoted_value_false)
 {
     char buffer[] = "false}";
     minijson::buffer_context buffer_context(buffer, sizeof(buffer) - 1);
-    minijson::detail::read_unquoted_value(buffer_context);
+    const std::string_view token =
+        minijson::detail::read_unquoted_value(buffer_context).first;
 
-    const minijson::value value = minijson::detail::parse_unquoted_value(buffer_context);
+    const minijson::value value = minijson::detail::parse_unquoted_value(buffer_context, token);
     ASSERT_EQ(minijson::Boolean, value.type());
-    ASSERT_STREQ("false",        value.as_string());
+    ASSERT_EQ("false",           value.as_string());
     ASSERT_EQ(0,                 value.as_long());
     ASSERT_FALSE(                value.as_bool());
     ASSERT_DOUBLE_EQ(0.0,        value.as_double());
@@ -634,11 +639,12 @@ TEST(minijson_reader_detail, parse_unquoted_value_null)
 {
     char buffer[] = "null}";
     minijson::buffer_context buffer_context(buffer, sizeof(buffer) - 1);
-    minijson::detail::read_unquoted_value(buffer_context);
+    const std::string_view token =
+        minijson::detail::read_unquoted_value(buffer_context).first;
 
-    const minijson::value value = minijson::detail::parse_unquoted_value(buffer_context);
+    const minijson::value value = minijson::detail::parse_unquoted_value(buffer_context, token);
     ASSERT_EQ(minijson::Null, value.type());
-    ASSERT_STREQ("null",      value.as_string());
+    ASSERT_EQ("null",         value.as_string());
     ASSERT_EQ(0,              value.as_long());
     ASSERT_FALSE(             value.as_bool());
     ASSERT_DOUBLE_EQ(0.0,     value.as_double());
@@ -650,11 +656,12 @@ TEST(minijson_reader_detail, parse_unquoted_value_integer)
 {
     char buffer[] = "42]";
     minijson::buffer_context buffer_context(buffer, sizeof(buffer) - 1);
-    minijson::detail::read_unquoted_value(buffer_context);
+    const std::string_view token =
+        minijson::detail::read_unquoted_value(buffer_context).first;
 
-    const minijson::value value = minijson::detail::parse_unquoted_value(buffer_context);
+    const minijson::value value = minijson::detail::parse_unquoted_value(buffer_context, token);
     ASSERT_EQ(minijson::Number, value.type());
-    ASSERT_STREQ("42",          value.as_string());
+    ASSERT_EQ("42",             value.as_string());
     ASSERT_EQ(42,               value.as_long());
     ASSERT_TRUE(                value.as_bool());
     ASSERT_DOUBLE_EQ(42.0,      value.as_double());
@@ -666,11 +673,12 @@ TEST(minijson_reader_detail, parse_unquoted_value_large_integer)
 {
     char buffer[] = "9223372036854775808]";
     minijson::buffer_context buffer_context(buffer, sizeof(buffer) - 1);
-    minijson::detail::read_unquoted_value(buffer_context);
+    const std::string_view token =
+        minijson::detail::read_unquoted_value(buffer_context).first;
 
-    const minijson::value value = minijson::detail::parse_unquoted_value(buffer_context);
+    const minijson::value value = minijson::detail::parse_unquoted_value(buffer_context, token);
     ASSERT_EQ(minijson::Number, value.type());
-    ASSERT_STREQ("9223372036854775808",     value.as_string());
+    ASSERT_EQ("9223372036854775808",        value.as_string());
     ASSERT_EQ(0,                            value.as_long());
     ASSERT_FALSE(                           value.as_bool());
     ASSERT_DOUBLE_EQ(9223372036854775808.0, value.as_double());
@@ -682,11 +690,12 @@ TEST(minijson_reader_detail, parse_unquoted_value_double)
 {
     char buffer[] = "42.0e+76,";
     minijson::buffer_context buffer_context(buffer, sizeof(buffer) - 1);
-    minijson::detail::read_unquoted_value(buffer_context);
+    const std::string_view token =
+        minijson::detail::read_unquoted_value(buffer_context).first;
 
-    const minijson::value value = minijson::detail::parse_unquoted_value(buffer_context);
+    const minijson::value value = minijson::detail::parse_unquoted_value(buffer_context, token);
     ASSERT_EQ(minijson::Number, value.type());
-    ASSERT_STREQ("42.0e+76",    value.as_string());
+    ASSERT_EQ("42.0e+76",       value.as_string());
     ASSERT_EQ(0,                value.as_long());
     ASSERT_FALSE(               value.as_bool());
     ASSERT_DOUBLE_EQ(42.0E+76,  value.as_double());
@@ -698,7 +707,6 @@ TEST(minijson_reader_detail, parse_unquoted_value_invalid)
 {
     char buffer[] = "asd,";
     minijson::buffer_context buffer_context(buffer, sizeof(buffer));
-    minijson::detail::read_unquoted_value(buffer_context);
 
     parse_unquoted_value_invalid_helper(buffer_context, 3);
 }
@@ -714,7 +722,7 @@ TEST(minijson_reader_detail, read_value_object)
     const char ending_char = result.second;
 
     ASSERT_EQ(minijson::Object, value.type());
-    ASSERT_STREQ("",            value.as_string());
+    ASSERT_EQ("",               value.as_string());
     ASSERT_EQ(0,                value.as_long());
     ASSERT_FALSE(               value.as_bool());
     ASSERT_DOUBLE_EQ(0.0,       value.as_double());
@@ -735,7 +743,7 @@ TEST(minijson_reader_detail, read_value_array)
     const char ending_char = result.second;
 
     ASSERT_EQ(minijson::Array, value.type());
-    ASSERT_STREQ("",           value.as_string());
+    ASSERT_EQ("",              value.as_string());
     ASSERT_EQ(0,               value.as_long());
     ASSERT_FALSE(              value.as_bool());
     ASSERT_DOUBLE_EQ(0.0,      value.as_double());
@@ -756,7 +764,7 @@ TEST(minijson_reader_detail, read_value_quoted_string)
     const char ending_char = result.second;
 
     ASSERT_EQ(minijson::String, value.type());
-    ASSERT_STREQ("Hello world", value.as_string());
+    ASSERT_EQ("Hello world",    value.as_string());
     ASSERT_EQ(0,                value.as_long());
     ASSERT_FALSE(               value.as_bool());
     ASSERT_DOUBLE_EQ(0.0,       value.as_double());
@@ -777,7 +785,7 @@ TEST(minijson_reader_detail, read_value_quoted_string_empty)
     const char ending_char = result.second;
 
     ASSERT_EQ(minijson::String, value.type());
-    ASSERT_STREQ("",            value.as_string());
+    ASSERT_EQ("",               value.as_string());
     ASSERT_EQ(0,                value.as_long());
     ASSERT_FALSE(               value.as_bool());
     ASSERT_DOUBLE_EQ(0.0,       value.as_double());
@@ -798,7 +806,7 @@ TEST(minijson_reader_detail, read_value_unquoted)
     const char ending_char = result.second;
 
     ASSERT_EQ(minijson::Boolean, value.type());
-    ASSERT_STREQ("true",         value.as_string());
+    ASSERT_EQ("true",            value.as_string());
     ASSERT_EQ(1,                 value.as_long());
     ASSERT_TRUE(                 value.as_bool());
     ASSERT_DOUBLE_EQ(1.0,        value.as_double());
@@ -834,7 +842,7 @@ TEST(minijson_reader_detail, read_value_unquoted_invalid)
     ASSERT_TRUE(exception_thrown);
 }
 
-void parse_object_empty_handler(const char*, minijson::value)
+void parse_object_empty_handler(std::string_view, minijson::value)
 {
     FAIL();
 }
@@ -885,13 +893,13 @@ struct parse_object_single_field_handler : check_on_destroy_handler
         }
     }
 
-    void operator()(const char* field_name, const minijson::value& field_value)
+    void operator()(std::string_view field_name, const minijson::value& field_value)
     {
         read_field = true;
-        ASSERT_STREQ("field", field_name);
+        ASSERT_EQ("field", field_name);
 
         ASSERT_EQ(minijson::String, field_value.type());
-        ASSERT_STREQ("value", field_value.as_string());
+        ASSERT_EQ("value", field_value.as_string());
     }
 };
 
@@ -915,22 +923,22 @@ struct parse_object_multiple_fields_handler : check_on_destroy_handler
         }
     }
 
-    void operator()(const char* n, const minijson::value& v)
+    void operator()(std::string_view n, const minijson::value& v)
     {
-        if (strcmp(n, "string") == 0)
-            { h[0] = 1; ASSERT_EQ(minijson::String,  v.type()); ASSERT_STREQ("value\"\\/\b\f\n\r\t", v.as_string()); }
-        else if (strcmp(n, "integer") == 0)
+        if (n == "string")
+            { h[0] = 1; ASSERT_EQ(minijson::String,  v.type()); ASSERT_EQ("value\"\\/\b\f\n\r\t", v.as_string()); }
+        else if (n == "integer")
             { h[1] = 1; ASSERT_EQ(minijson::Number,  v.type()); ASSERT_EQ(42, v.as_long()); }
-        else if (strcmp(n, "floating_point") == 0)
+        else if (n == "floating_point")
             { h[2] = 1; ASSERT_EQ(minijson::Number,  v.type()); ASSERT_DOUBLE_EQ(4261826387162873618273687126387.0, v.as_double()); }
-        else if (strcmp(n, "boolean_true") == 0)
+        else if (n == "boolean_true")
             { h[3] = 1; ASSERT_EQ(minijson::Boolean, v.type()); ASSERT_TRUE(v.as_bool()); }
-        else if (strcmp(n, "boolean_false") == 0)
+        else if (n == "boolean_false")
             { h[4] = 1; ASSERT_EQ(minijson::Boolean, v.type()); ASSERT_FALSE(v.as_bool()); }
-        else if (strcmp(n, "") == 0)
+        else if (n == "")
             { h[5] = 1; ASSERT_EQ(minijson::Null,    v.type()); }
-        else if (strcmp(n, "\xc3\xA0\x01\x02" "a" "\xED\x9F\xBF\xEE\x80\x80\xEF\xBF\xBF" "b" "你" "\xF0\x90\x80\x80" "\xF4\x8F\xBF\xBF" "à") == 0)
-            { h[6] = 1; ASSERT_EQ(minijson::String,  v.type()); ASSERT_STREQ("", v.as_string()); }
+        else if (n == "\xc3\xA0\x01\x02" "a" "\xED\x9F\xBF\xEE\x80\x80\xEF\xBF\xBF" "b" "你" "\xF0\x90\x80\x80" "\xF4\x8F\xBF\xBF" "à")
+            { h[6] = 1; ASSERT_EQ(minijson::String,  v.type()); ASSERT_EQ("", v.as_string()); }
         else
             { FAIL(); }
     }
@@ -977,11 +985,11 @@ struct parse_object_nested_handler : check_on_destroy_handler
         }
     }
 
-    void operator()(const char* n, const minijson::value& v)
+    void operator()(std::string_view n, const minijson::value& v)
     {
-        if (strcmp(n, "") == 0)
+        if (n == "")
             { h[0] = 1; ASSERT_EQ(minijson::Object, v.type()); minijson::parse_object(context, nested1_handler(context)); }
-        else if (strcmp(n, "val2") == 0)
+        else if (n == "val2")
             { h[1] = 1; ASSERT_EQ(minijson::Number, v.type()); ASSERT_DOUBLE_EQ(42.0, v.as_double()); }
         else
             { FAIL(); }
@@ -1006,10 +1014,10 @@ struct parse_object_nested_handler : check_on_destroy_handler
             }
         }
 
-        void operator()(const char* n, const minijson::value& v)
+        void operator()(std::string_view n, const minijson::value& v)
         {
             read_field = true;
-            ASSERT_STREQ("nested2", n);
+            ASSERT_EQ("nested2", n);
             ASSERT_EQ(minijson::Object, v.type());
             minijson::parse_object(context, nested2_handler(context));
         }
@@ -1032,11 +1040,11 @@ struct parse_object_nested_handler : check_on_destroy_handler
                 }
             }
 
-            void operator()(const char* n, const minijson::value& v)
+            void operator()(std::string_view n, const minijson::value& v)
             {
-                if (strcmp(n, "val1") == 0)
+                if (n == "val1")
                     { h[0] = 1; ASSERT_EQ(minijson::Number, v.type()); ASSERT_EQ(42, v.as_long()); }
-                else if (strcmp(n, "nested3") == 0)
+                else if (n == "nested3")
                     { h[1] = 1; ASSERT_EQ(minijson::Array, v.type()); minijson::parse_array(context, parse_array_empty_handler); }
                 else
                     { FAIL(); }
@@ -1095,7 +1103,7 @@ struct parse_array_single_elem_handler : check_on_destroy_handler
         read_elem = true;
 
         ASSERT_EQ(minijson::String, elem_value.type());
-        ASSERT_STREQ("value", elem_value.as_string());
+        ASSERT_EQ("value", elem_value.as_string());
     }
 };
 
@@ -1130,7 +1138,7 @@ struct parse_array_single_elem2_handler : check_on_destroy_handler
 
         ASSERT_EQ(minijson:: Number, elem_value.type());
         ASSERT_EQ(1, elem_value.as_long());
-        ASSERT_STREQ("1", elem_value.as_string());
+        ASSERT_EQ("1", elem_value.as_string());
     }
 };
 
@@ -1163,13 +1171,13 @@ struct parse_array_multiple_elems_handler : check_on_destroy_handler
     {
         switch (counter++)
         {
-        case 0:  ASSERT_EQ(minijson::String,   v.type()); ASSERT_STREQ("value", v.as_string());  break;
+        case 0:  ASSERT_EQ(minijson::String,   v.type()); ASSERT_EQ("value", v.as_string());     break;
         case 1:  ASSERT_EQ(minijson::Number,   v.type()); ASSERT_EQ(42, v.as_long());            break;
         case 2:  ASSERT_EQ(minijson::Number,   v.type()); ASSERT_DOUBLE_EQ(42.0, v.as_double()); break;
         case 3:  ASSERT_EQ(minijson::Boolean,  v.type()); ASSERT_TRUE(v.as_bool());              break;
         case 4:  ASSERT_EQ(minijson::Boolean,  v.type()); ASSERT_FALSE(v.as_bool());             break;
         case 5:  ASSERT_EQ(minijson::Null,     v.type());                                        break;
-        case 6:  ASSERT_EQ(minijson::String,   v.type()); ASSERT_STREQ("", v.as_string());       break;
+        case 6:  ASSERT_EQ(minijson::String,   v.type()); ASSERT_EQ("", v.as_string());          break;
         default: FAIL();
         }
     }
@@ -1305,7 +1313,7 @@ TEST(minijson_reader, parse_array_nested)
 
 struct parse_dummy
 {
-    void operator()(const char*, minijson::value)
+    void operator()(std::string_view, minijson::value)
     {
     }
 
@@ -1324,7 +1332,7 @@ struct parse_dummy_consume
     {
     }
 
-    void operator()(const char*, minijson::value value)
+    void operator()(std::string_view, minijson::value value)
     {
         operator()(value);
     }
@@ -1677,14 +1685,14 @@ TEST(minijson_dispatch, parse_object)
     using namespace minijson;
 
     buffer_context ctx(json_obj, sizeof(json_obj) - 1);
-    parse_object(ctx, [&](const char* k, value v)
+    parse_object(ctx, [&](std::string_view k, value v)
     {
         dispatch (k)
         <<"field1">> [&]{ obj.field1 = v.as_long(); }
         <<"field2">> [&]{ obj.field2 = v.as_string(); }
         <<"nested">> [&]
         {
-            parse_object(ctx, [&](const char* k, value v)
+            parse_object(ctx, [&](std::string_view k, value v)
             {
                 dispatch (k)
                 <<"field1">> [&]{ obj.nested.field1 = v.as_double(); }
