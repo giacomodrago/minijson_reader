@@ -58,10 +58,10 @@ TEST(minijson_reader, buffer_context)
 
     ASSERT_STREQ("Hello", buffer);
     ASSERT_STREQ("World", buffer + 6);
-    ASSERT_THROW(buffer_context.write('x'), std::runtime_error);
+    ASSERT_DEATH({buffer_context.write('x');}, "");
     buffer_context.new_write_buffer();
     ASSERT_EQ(buffer + sizeof(buffer), buffer_context.write_buffer());
-    ASSERT_THROW(buffer_context.write('x'), std::runtime_error);
+    ASSERT_DEATH({buffer_context.write('x');}, "");
 }
 
 TEST(minijson_reader, const_buffer_context)
@@ -72,10 +72,10 @@ TEST(minijson_reader, const_buffer_context)
     test_context_helper(const_buffer_context);
 
     ASSERT_STREQ("hello world.", buffer); // no side effects
-    ASSERT_THROW(const_buffer_context.write('x'), std::runtime_error);
+    ASSERT_DEATH({const_buffer_context.write('x');}, "");
     const_buffer_context.new_write_buffer();
     ASSERT_EQ(original_write_buffer + strlen(buffer), const_buffer_context.write_buffer());
-    ASSERT_THROW(const_buffer_context.write('x'), std::runtime_error);
+    ASSERT_DEATH({const_buffer_context.write('x');}, "");
 }
 
 TEST(minijson_reader, istream_context)
@@ -92,46 +92,16 @@ void test_context_copy_construction_helper(const Context& original)
     (void)copy;
 }
 
-TEST(minijson_reader, context_no_copy_construction)
-{
-    std::istringstream ss;
-
-    // this test is compile-time only: uncommenting any of the following lines should cause a compile error
-    //test_context_copy_construction_helper(minijson::buffer_context(NULL, 0));
-    //test_context_copy_construction_helper(minijson::const_buffer_context(NULL, 0));
-    //test_context_copy_construction_helper(minijson::istream_context(ss));
-
-    (void)ss;
-}
-
 template<typename Context>
 void test_context_copy_assignment_helper(const Context& original, Context& copy)
 {
     copy = original;
 }
 
-TEST(minijson_reader, context_no_copy_assignment)
-{
-    std::istringstream ss;
-    minijson::buffer_context buffer_context(NULL, 0);
-    minijson::const_buffer_context const_buffer_context(NULL, 0);
-    minijson::istream_context istream_context(ss);
-
-    // this test is compile-time only: uncommenting any of the following lines should cause a compile error
-    //test_context_copy_assignment_helper(minijson::buffer_context(NULL, 0), buffer_context);
-    //test_context_copy_assignment_helper(minijson::const_buffer_context(NULL, 0), const_buffer_context);
-    //test_context_copy_assignment_helper(minijson::istream_context(ss), istream_context);
-
-    (void)ss;
-    (void)buffer_context;
-    (void)const_buffer_context;
-    (void)istream_context;
-}
-
 TEST(minijson_reader, parse_error)
 {
     {
-        minijson::buffer_context buffer_context(NULL, 0);
+        minijson::buffer_context buffer_context(nullptr, 0);
         minijson::parse_error parse_error(buffer_context, minijson::parse_error::UNKNOWN);
 
         ASSERT_EQ(0U, parse_error.offset());
@@ -1482,7 +1452,7 @@ TEST(minijson_reader, parse_array_truncated)
 }
 
 template<std::size_t Length>
-void parse_object_invalid_helper(const char (&buffer)[Length], minijson::parse_error::error_reason expected_reason, const char* expected_what = NULL)
+void parse_object_invalid_helper(const char (&buffer)[Length], minijson::parse_error::error_reason expected_reason, const char* expected_what = nullptr)
 {
     minijson::const_buffer_context const_buffer_context(buffer, sizeof(buffer) - 1);
 
@@ -1506,7 +1476,7 @@ void parse_object_invalid_helper(const char (&buffer)[Length], minijson::parse_e
 }
 
 template<std::size_t Length>
-void parse_object_invalid_helper2(const char (&buffer)[Length], minijson::parse_error::error_reason expected_reason, const char* expected_what = NULL)
+void parse_object_invalid_helper2(const char (&buffer)[Length], minijson::parse_error::error_reason expected_reason, const char* expected_what = nullptr)
 {
     minijson::const_buffer_context const_buffer_context(buffer, sizeof(buffer) - 1);
 
@@ -1530,7 +1500,7 @@ void parse_object_invalid_helper2(const char (&buffer)[Length], minijson::parse_
 }
 
 template<std::size_t Length>
-void parse_array_invalid_helper(const char (&buffer)[Length], minijson::parse_error::error_reason expected_reason, const char* expected_what = NULL)
+void parse_array_invalid_helper(const char (&buffer)[Length], minijson::parse_error::error_reason expected_reason, const char* expected_what = nullptr)
 {
     minijson::const_buffer_context const_buffer_context(buffer, sizeof(buffer) - 1);
 
@@ -1554,7 +1524,7 @@ void parse_array_invalid_helper(const char (&buffer)[Length], minijson::parse_er
 }
 
 template<std::size_t Length>
-void parse_array_invalid_helper2(const char (&buffer)[Length], minijson::parse_error::error_reason expected_reason, const char* expected_what = NULL)
+void parse_array_invalid_helper2(const char (&buffer)[Length], minijson::parse_error::error_reason expected_reason, const char* expected_what = nullptr)
 {
     minijson::const_buffer_context const_buffer_context(buffer, sizeof(buffer) - 1);
 
