@@ -353,7 +353,7 @@ TEST(minijson_reader_detail, parse_utf16_escape_sequence_invalid)
     ASSERT_THROW(minijson::detail::parse_utf16_escape_sequence("abc "), minijson::detail::encoding_error);
 }
 
-static void test_write_utf8_char(minijson::detail::utf8_char c, const char* expected_str)
+static void test_write_utf8_char(std::array<std::uint8_t, 4> c, const char* expected_str)
 {
     char buf[] = "____";
 
@@ -369,11 +369,11 @@ static void test_write_utf8_char(minijson::detail::utf8_char c, const char* expe
 
 TEST(minijson_reader_detail, write_utf8_char)
 {
-    test_write_utf8_char(minijson::detail::utf8_char { 0x00, 0x00, 0x00, 0x00 }, "");
-    test_write_utf8_char(minijson::detail::utf8_char { 0xFF, 0x00, 0x00, 0x00 }, "\xFF___");
-    test_write_utf8_char(minijson::detail::utf8_char { 0xFF, 0xFE, 0x00, 0x00 }, "\xFF\xFE__");
-    test_write_utf8_char(minijson::detail::utf8_char { 0xFF, 0xFE, 0xFD, 0x00 }, "\xFF\xFE\xFD_");
-    test_write_utf8_char(minijson::detail::utf8_char { 0xFF, 0xFE, 0xFD, 0xFC }, "\xFF\xFE\xFD\xFC");
+    test_write_utf8_char(std::array<std::uint8_t, 4> {0x00, 0x00, 0x00, 0x00}, "");
+    test_write_utf8_char(std::array<std::uint8_t, 4> {0xFF, 0x00, 0x00, 0x00}, "\xFF___");
+    test_write_utf8_char(std::array<std::uint8_t, 4> {0xFF, 0xFE, 0x00, 0x00}, "\xFF\xFE__");
+    test_write_utf8_char(std::array<std::uint8_t, 4> {0xFF, 0xFE, 0xFD, 0x00}, "\xFF\xFE\xFD_");
+    test_write_utf8_char(std::array<std::uint8_t, 4> {0xFF, 0xFE, 0xFD, 0xFC}, "\xFF\xFE\xFD\xFC");
 }
 
 TEST(minijson_reader_detail, read_quoted_string_empty)

@@ -335,8 +335,6 @@ public:
 namespace detail
 {
 
-using utf8_char = std::array<std::uint8_t, 4>;
-
 // this exception is not to be propagated outside minijson
 struct encoding_error
 {
@@ -379,9 +377,9 @@ inline std::uint32_t utf16_to_utf32(std::uint16_t high, std::uint16_t low)
     return result;
 }
 
-inline utf8_char utf32_to_utf8(const std::uint32_t utf32_char)
+inline std::array<std::uint8_t, 4> utf32_to_utf8(const std::uint32_t utf32_char)
 {
-    utf8_char result {};
+    std::array<std::uint8_t, 4> result {};
 
     if      (utf32_char <= 0x00007F)
     {
@@ -414,7 +412,7 @@ inline utf8_char utf32_to_utf8(const std::uint32_t utf32_char)
     return result;
 }
 
-inline utf8_char utf16_to_utf8(
+inline std::array<std::uint8_t, 4> utf16_to_utf8(
     const std::uint16_t high,
     const std::uint16_t low)
 {
@@ -491,9 +489,9 @@ inline std::uint16_t parse_utf16_escape_sequence(const char* const seq)
 }
 
 template<typename Context>
-void write_utf8_char(Context& context, const utf8_char& c)
+void write_utf8_char(Context& context, const std::array<std::uint8_t, 4>& c)
 {
-    for (std::size_t i = 0; i < 4; i++)
+    for (std::size_t i = 0; i < c.size(); i++)
     {
         const char byte = c[i];
         if (i > 0 && byte == 0)
