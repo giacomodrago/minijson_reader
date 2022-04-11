@@ -18,7 +18,7 @@ void test_context_helper(Context& context)
         case 2:  ASSERT_EQ('l', context.read()); context.write('l'); break;
         case 3:  ASSERT_EQ('l', context.read()); context.write('l'); break;
         case 4:  ASSERT_EQ('o', context.read()); context.write('o'); break;
-        case 5:  ASSERT_EQ(' ', context.read()); context.write(0); ASSERT_STREQ("Hello", context.write_buffer()); context.new_write_buffer(); break;
+        case 5:  ASSERT_EQ(' ', context.read()); context.write(0); ASSERT_STREQ("Hello", context.current_token()); context.start_new_token(); break;
         case 6:  ASSERT_EQ('w', context.read()); context.write('W'); break;
         case 7:  ASSERT_EQ('o', context.read()); context.write('o'); break;
         case 8:  ASSERT_EQ('r', context.read()); context.write('r'); break;
@@ -31,7 +31,7 @@ void test_context_helper(Context& context)
 
     ASSERT_EQ(0, context.read());
     ASSERT_EQ(12U, context.read_offset());
-    ASSERT_STREQ("World", context.write_buffer());
+    ASSERT_STREQ("World", context.current_token());
 
     ASSERT_EQ(minijson::detail::context_base::NESTED_STATUS_NONE, context.nested_status());
 
@@ -59,8 +59,8 @@ TEST(minijson_reader, buffer_context)
     ASSERT_STREQ("Hello", buffer);
     ASSERT_STREQ("World", buffer + 6);
     ASSERT_DEATH({buffer_context.write('x');}, "");
-    buffer_context.new_write_buffer();
-    ASSERT_EQ(buffer + sizeof(buffer), buffer_context.write_buffer());
+    buffer_context.start_new_token();
+    ASSERT_EQ(buffer + sizeof(buffer), buffer_context.current_token());
     ASSERT_DEATH({buffer_context.write('x');}, "");
 }
 
@@ -68,13 +68,13 @@ TEST(minijson_reader, const_buffer_context)
 {
     const char buffer[] = "hello world.";
     minijson::const_buffer_context const_buffer_context(buffer, sizeof(buffer) - 1);
-    const char* const original_write_buffer = const_buffer_context.write_buffer();
+    const char* const original_write_buffer = const_buffer_context.current_token();
     test_context_helper(const_buffer_context);
 
     ASSERT_STREQ("hello world.", buffer); // no side effects
     ASSERT_DEATH({const_buffer_context.write('x');}, "");
-    const_buffer_context.new_write_buffer();
-    ASSERT_EQ(original_write_buffer + strlen(buffer), const_buffer_context.write_buffer());
+    const_buffer_context.start_new_token();
+    ASSERT_EQ(original_write_buffer + strlen(buffer), const_buffer_context.current_token());
     ASSERT_DEATH({const_buffer_context.write('x');}, "");
 }
 
@@ -381,7 +381,7 @@ TEST(minijson_reader_detail, read_quoted_string_empty)
     char buffer[] = "\"\"";
     minijson::buffer_context buffer_context(buffer, sizeof(buffer));
     minijson::detail::read_quoted_string(buffer_context);
-    ASSERT_STREQ("", buffer_context.write_buffer());
+    ASSERT_STREQ("", buffer_context.current_token());
 }
 
 TEST(minijson_reader_detail, read_quoted_string_one_char)
@@ -389,7 +389,7 @@ TEST(minijson_reader_detail, read_quoted_string_one_char)
     char buffer[] = "\"a\"";
     minijson::buffer_context buffer_context(buffer, sizeof(buffer));
     minijson::detail::read_quoted_string(buffer_context);
-    ASSERT_STREQ("a", buffer_context.write_buffer());
+    ASSERT_STREQ("a", buffer_context.current_token());
 }
 
 TEST(minijson_reader_detail, read_quoted_string_ascii)
@@ -397,7 +397,7 @@ TEST(minijson_reader_detail, read_quoted_string_ascii)
     char buffer[] = "\"foo\"";
     minijson::buffer_context buffer_context(buffer, sizeof(buffer));
     minijson::detail::read_quoted_string(buffer_context);
-    ASSERT_STREQ("foo", buffer_context.write_buffer());
+    ASSERT_STREQ("foo", buffer_context.current_token());
 }
 
 TEST(minijson_reader_detail, read_quoted_string_utf8)
@@ -405,7 +405,7 @@ TEST(minijson_reader_detail, read_quoted_string_utf8)
     char buffer[] = "\"你好\"";
     minijson::buffer_context buffer_context(buffer, sizeof(buffer));
     minijson::detail::read_quoted_string(buffer_context);
-    ASSERT_STREQ("你好", buffer_context.write_buffer());
+    ASSERT_STREQ("你好", buffer_context.current_token());
 }
 
 TEST(minijson_reader_detail, read_quoted_string_escape_sequences)
@@ -413,7 +413,7 @@ TEST(minijson_reader_detail, read_quoted_string_escape_sequences)
     char buffer[] = "\"\\\"\\\\\\/\\b\\f\\n\\r\\t\"";
     minijson::buffer_context buffer_context(buffer, sizeof(buffer));
     minijson::detail::read_quoted_string(buffer_context);
-    ASSERT_STREQ("\"\\/\b\f\n\r\t", buffer_context.write_buffer());
+    ASSERT_STREQ("\"\\/\b\f\n\r\t", buffer_context.current_token());
 }
 
 TEST(minijson_reader_detail, read_quoted_string_escape_sequences_utf16)
@@ -422,7 +422,7 @@ TEST(minijson_reader_detail, read_quoted_string_escape_sequences_utf16)
     minijson::buffer_context buffer_context(buffer, sizeof(buffer));
     minijson::detail::read_quoted_string(buffer_context);
     ASSERT_STREQ("\x01\x02" "a" "\xED\x9F\xBF\xEE\x80\x80\xEF\xBF\xBF" "b" "你" "\xF0\x90\x80\x80" "\xF4\x8F\xBF\xBF" "à",
-        buffer_context.write_buffer());
+        buffer_context.current_token());
 }
 
 TEST(minijson_reader_detail, read_quoted_string_skip_opening_quote)
@@ -430,7 +430,7 @@ TEST(minijson_reader_detail, read_quoted_string_skip_opening_quote)
     char buffer[] = "asd\"";
     minijson::buffer_context buffer_context(buffer, sizeof(buffer));
     minijson::detail::read_quoted_string(buffer_context, true);
-    ASSERT_STREQ("asd", buffer_context.write_buffer());
+    ASSERT_STREQ("asd", buffer_context.current_token());
 }
 
 template<std::size_t Length>
@@ -504,7 +504,7 @@ TEST(minijson_reader_detail, read_unquoted_value_comma_terminated)
     char buffer[] = "42.42,";
     minijson::buffer_context buffer_context(buffer, sizeof(buffer));
     ASSERT_EQ(',', minijson::detail::read_unquoted_value(buffer_context));
-    ASSERT_STREQ("42.42", buffer_context.write_buffer());
+    ASSERT_STREQ("42.42", buffer_context.current_token());
 }
 
 TEST(minijson_reader_detail, read_unquoted_value_curly_bracket_terminated)
@@ -512,7 +512,7 @@ TEST(minijson_reader_detail, read_unquoted_value_curly_bracket_terminated)
     char buffer[] = "42.42E+104}";
     minijson::buffer_context buffer_context(buffer, sizeof(buffer));
     ASSERT_EQ('}', minijson::detail::read_unquoted_value(buffer_context));
-    ASSERT_STREQ("42.42E+104", buffer_context.write_buffer());
+    ASSERT_STREQ("42.42E+104", buffer_context.current_token());
 }
 
 TEST(minijson_reader_detail, read_unquoted_value_square_bracket_terminated)
@@ -520,7 +520,7 @@ TEST(minijson_reader_detail, read_unquoted_value_square_bracket_terminated)
     char buffer[] = "42.42]";
     minijson::buffer_context buffer_context(buffer, sizeof(buffer));
     ASSERT_EQ(']', minijson::detail::read_unquoted_value(buffer_context));
-    ASSERT_STREQ("42.42", buffer_context.write_buffer());
+    ASSERT_STREQ("42.42", buffer_context.current_token());
 }
 
 TEST(minijson_reader_detail, read_unquoted_value_whitespace_terminated)
@@ -528,7 +528,7 @@ TEST(minijson_reader_detail, read_unquoted_value_whitespace_terminated)
     char buffer[] = "true\t";
     minijson::buffer_context buffer_context(buffer, sizeof(buffer));
     ASSERT_EQ('\t', minijson::detail::read_unquoted_value(buffer_context));
-    ASSERT_STREQ("true", buffer_context.write_buffer());
+    ASSERT_STREQ("true", buffer_context.current_token());
 }
 
 TEST(minijson_reader_detail, read_unquoted_value_unterminated)
@@ -542,7 +542,7 @@ TEST(minijson_reader_detail, read_unquoted_value_first_char)
     minijson::buffer_context buffer_context(buffer, sizeof(buffer));
     buffer_context.read();
     ASSERT_EQ('\t', minijson::detail::read_unquoted_value(buffer_context, 't'));
-    ASSERT_STREQ("true", buffer_context.write_buffer());
+    ASSERT_STREQ("true", buffer_context.current_token());
 }
 
 TEST(minijson_reader, value_default_constructed)

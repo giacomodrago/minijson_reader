@@ -91,7 +91,7 @@ protected:
     std::size_t m_length;
     std::size_t m_read_offset = 0;
     std::size_t m_write_offset = 0;
-    const char* m_current_write_buffer = nullptr;
+    const char* m_current_token = nullptr;
 
     explicit buffer_context_base(
         const char* const read_buffer,
@@ -101,7 +101,7 @@ protected:
     , m_write_buffer(write_buffer)
     , m_length(length)
     {
-        new_write_buffer();
+        start_new_token();
     }
 
 public:
@@ -121,9 +121,9 @@ public:
         return m_read_offset;
     }
 
-    void new_write_buffer() noexcept
+    void start_new_token() noexcept
     {
-        m_current_write_buffer = m_write_buffer + m_write_offset;
+        m_current_token = m_write_buffer + m_write_offset;
     }
 
     void write(const char c) noexcept
@@ -141,9 +141,9 @@ public:
         m_write_buffer[m_write_offset++] = c;
     }
 
-    const char* write_buffer() const noexcept
+    const char* current_token() const noexcept
     {
-        return m_current_write_buffer;
+        return m_current_token;
     }
 }; // class buffer_context_base
 
@@ -185,14 +185,14 @@ private:
 
     std::istream& m_stream;
     std::size_t m_read_offset = 0;
-    std::list<std::vector<char>> m_write_buffers;
+    std::list<std::vector<char>> m_tokens;
 
 public:
 
     explicit istream_context(std::istream& stream)
     : m_stream(stream)
     {
-        new_write_buffer();
+        start_new_token();
     }
 
     char read()
@@ -216,24 +216,24 @@ public:
         return m_read_offset;
     }
 
-    void new_write_buffer()
+    void start_new_token()
     {
-        m_write_buffers.emplace_back();
+        m_tokens.emplace_back();
     }
 
     void write(const char c)
     {
-        m_write_buffers.back().push_back(c);
+        m_tokens.back().push_back(c);
     }
 
-    // This method to retrieve the address of the write buffer MUST be called
-    // AFTER all the calls to write() for the current write buffer have been
+    // This method to retrieve the address of the current token MUST be called
+    // AFTER all the calls to write() for the current current token have been
     // performed
-    const char* write_buffer() const noexcept
+    const char* current_token() const noexcept
     {
-        const std::vector<char>& buffer = m_write_buffers.back();
+        const std::vector<char>& token = m_tokens.back();
 
-        return !buffer.empty() ? buffer.data() : nullptr;
+        return !token.empty() ? token.data() : nullptr;
     }
 }; // class istream_context
 
@@ -712,7 +712,7 @@ class value final
 private:
 
     value_type m_type = Null;
-    const char* m_buffer = "";
+    const char* m_token = "";
     long m_long_value = 0;
     bool m_long_available = false;
     double m_double_value = 0.0;
@@ -727,21 +727,21 @@ public:
     {
     }
 
-    explicit value(const value_type type, const char* const buffer) noexcept
+    explicit value(const value_type type, const char* const token) noexcept
     : m_type(type)
-    , m_buffer(buffer)
+    , m_token(token)
     {
     }
 
     explicit value(
         const value_type type,
-        const char* const buffer,
+        const char* const token,
         const long long_value,
         const bool long_available,
         const double double_value,
         const bool double_available) noexcept
     : m_type(type)
-    , m_buffer(buffer)
+    , m_token(token)
     , m_long_value(long_value)
     , m_long_available(long_available)
     , m_double_value(double_value)
@@ -756,7 +756,7 @@ public:
 
     const char* as_string() const noexcept
     {
-        return m_buffer;
+        return m_token;
     }
 
     long as_long() const noexcept
@@ -791,19 +791,19 @@ namespace detail
 template<typename Context>
 value parse_unquoted_value(const Context& context)
 {
-    const char* const buffer = context.write_buffer();
+    const char* const token = context.current_token();
 
-    if (std::strcmp(buffer, "true") == 0)
+    if (std::strcmp(token, "true") == 0)
     {
-        return value(Boolean, buffer, 1, true, 1.0, true);
+        return value(Boolean, token, 1, true, 1.0, true);
     }
-    else if (std::strcmp(buffer, "false") == 0)
+    else if (std::strcmp(token, "false") == 0)
     {
-        return value(Boolean, buffer, 0, true, 0.0, true);
+        return value(Boolean, token, 0, true, 0.0, true);
     }
-    else if (std::strcmp(buffer, "null") == 0)
+    else if (std::strcmp(token, "null") == 0)
     {
-        return value(Null, buffer);
+        return value(Null, token);
     }
     else
     {
@@ -814,7 +814,7 @@ value parse_unquoted_value(const Context& context)
 
         try
         {
-            long_value = parse_long(buffer);
+            long_value = parse_long(token);
             long_available = true;
             double_value = long_value;
             double_available = true;
@@ -823,7 +823,7 @@ value parse_unquoted_value(const Context& context)
         {
             try
             {
-                double_value = parse_double(buffer);
+                double_value = parse_double(token);
                 double_available = true;
             }
             catch (const number_parse_error&)
@@ -834,7 +834,7 @@ value parse_unquoted_value(const Context& context)
 
         return value(
             Number,
-            buffer,
+            token,
             long_value,
             long_available,
             double_value,
@@ -855,14 +855,14 @@ std::pair<value, char> read_value(Context& context, const char first_char)
     }
     else if (first_char == '"') // quoted string
     {
-        context.new_write_buffer();
+        context.start_new_token();
         read_quoted_string(context, true);
 
-        return {value(String, context.write_buffer()), 0};
+        return {value(String, context.current_token()), 0};
     }
     else // unquoted value
     {
-        context.new_write_buffer();
+        context.start_new_token();
         const char ending_char = read_unquoted_value(context, first_char);
 
         return {parse_unquoted_value(context), ending_char};
@@ -991,9 +991,9 @@ void parse_object(Context& context, Handler&& handler)
             {
                 throw parse_error(context, parse_error::EXPECTED_OPENING_QUOTE);
             }
-            context.new_write_buffer();
+            context.start_new_token();
             detail::read_quoted_string(context, true);
-            field_name = context.write_buffer();
+            field_name = context.current_token();
             state = COLON;
             break;
 
