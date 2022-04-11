@@ -7,11 +7,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
-#include <cstring>
 #include <istream>
 #include <list>
 #include <stdexcept>
-#include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -144,6 +143,11 @@ public:
     {
         return m_current_token;
     }
+
+    std::size_t current_token_length() const noexcept
+    {
+        return m_write_buffer + m_write_offset - m_current_token;
+    }
 }; // class buffer_context_base
 
 } // namespace detail
@@ -191,7 +195,6 @@ public:
     explicit istream_context(std::istream& stream)
     : m_stream(stream)
     {
-        start_new_token();
     }
 
     char read()
@@ -234,7 +237,50 @@ public:
 
         return !token.empty() ? token.data() : nullptr;
     }
+
+    std::size_t current_token_length() const noexcept
+    {
+        return m_tokens.back().size();
+    }
 }; // class istream_context
+
+namespace detail
+{
+
+template<typename Context>
+class token_writer final
+{
+private:
+
+    Context& m_context;
+
+public:
+
+    explicit token_writer(Context& context) noexcept
+    : m_context(context)
+    {
+        m_context.start_new_token();
+    }
+
+    void write(const char c) noexcept(noexcept(m_context.write(c)))
+    {
+        m_context.write(c);
+    }
+
+    std::string_view finalize() noexcept(noexcept(m_context.write(0)))
+    {
+        // Get the length of the token
+        const std::size_t length = m_context.current_token_length();
+
+        // Write a null terminator. This is not strictly required, but brings
+        // some extra safety at negligible cost.
+        m_context.write(0);
+
+        return {m_context.current_token(), length};
+    }
+}; // class token_writer
+
+} // namespace detail
 
 class parse_error : public std::exception
 {
@@ -423,17 +469,13 @@ struct number_parse_error
 {
 };
 
-inline long parse_long(const char* const str, const int base = 10)
+inline long parse_long(const std::string_view token, const int base = 10)
 {
-    // FIXME: this is useless work as the length of the string is already known,
-    // it just needs to be made available here
-    const char* const end_ptr = str + std::strlen(str);
-
     long result;
 
     const auto [parse_end_ptr, error] =
-        std::from_chars(str, end_ptr, result, base);
-    if (parse_end_ptr != end_ptr || error != std::errc())
+        std::from_chars(token.begin(), token.end(), result, base);
+    if (parse_end_ptr != token.end() || error != std::errc())
     {
         // We could not parse the whole string as an integer or the number is
         // out of range
@@ -443,15 +485,13 @@ inline long parse_long(const char* const str, const int base = 10)
     return result;
 }
 
-inline double parse_double(const char* const str)
+inline double parse_double(const std::string_view token)
 {
-    // Find the end of the string, while also performing a check on the
-    // characters to make sure we reject NaN, INF, and whatever other special
-    // sequence JSON does not allow, but std::from_chars() has to support
-    const char* end_ptr = str;
-    for (; *end_ptr != 0; ++end_ptr)
+    // Perform a check on the characters to make sure we reject NaN, INF, and
+    // whatever other special sequence JSON does not allow but std::from_chars()
+    // has to support
+    for (const char c : token)
     {
-        const char c = *end_ptr;
         if (!std::isdigit(c) &&
             c != '+' && c != '-' && c != '.' && c != 'e' && c != 'E')
         {
@@ -461,8 +501,9 @@ inline double parse_double(const char* const str)
 
     double result;
 
-    const auto [parse_end_ptr, error] = std::from_chars(str, end_ptr, result);
-    if (parse_end_ptr != end_ptr || error != std::errc())
+    const auto [parse_end_ptr, error] =
+        std::from_chars(token.begin(), token.end(), result);
+    if (parse_end_ptr != token.end() || error != std::errc())
     {
         // We could not parse the whole string as a floating point number
         // or the number is out of range
@@ -488,7 +529,9 @@ inline std::uint16_t parse_utf16_escape_sequence(const char* const seq)
 }
 
 template<typename Context>
-void write_utf8_char(Context& context, const std::array<std::uint8_t, 4>& c)
+void write_utf8_char(
+    token_writer<Context>& writer,
+    const std::array<std::uint8_t, 4>& c)
 {
     for (std::size_t i = 0; i < c.size(); i++)
     {
@@ -498,13 +541,17 @@ void write_utf8_char(Context& context, const std::array<std::uint8_t, 4>& c)
             break;
         }
 
-        context.write(byte);
+        writer.write(byte);
     }
 }
 
 template<typename Context>
-void read_quoted_string(Context& context, const bool skip_opening_quote = false)
+std::string_view read_quoted_string(
+    Context& context,
+    const bool skip_opening_quote = false)
 {
+    token_writer writer(context);
+
     enum
     {
         OPENING_QUOTE,
@@ -554,7 +601,7 @@ void read_quoted_string(Context& context, const bool skip_opening_quote = false)
             }
             else
             {
-                context.write(c);
+                writer.write(c);
             }
 
             break;
@@ -566,28 +613,28 @@ void read_quoted_string(Context& context, const bool skip_opening_quote = false)
             switch (c)
             {
             case '"':
-                context.write('"');
+                writer.write('"');
                 break;
             case '\\':
-                context.write('\\');
+                writer.write('\\');
                 break;
             case '/':
-                context.write('/');
+                writer.write('/');
                 break;
             case 'b':
-                context.write('\b');
+                writer.write('\b');
                 break;
             case 'f':
-                context.write('\f');
+                writer.write('\f');
                 break;
             case 'n':
-                context.write('\n');
+                writer.write('\n');
                 break;
             case 'r':
-                context.write('\r');
+                writer.write('\r');
                 break;
             case 't':
-                context.write('\t');
+                writer.write('\t');
                 break;
             case 'u':
                 state = UTF16_SEQUENCE;
@@ -621,7 +668,8 @@ void read_quoted_string(Context& context, const bool skip_opening_quote = false)
                         // We were waiting for the low surrogate
                         // (that now is code_unit)
                         write_utf8_char(
-                            context, utf16_to_utf8(high_surrogate, code_unit));
+                            writer,
+                            utf16_to_utf8(high_surrogate, code_unit));
                         high_surrogate = 0;
                     }
                     else if (code_unit >= 0xD800 && code_unit <= 0xDBFF)
@@ -630,7 +678,7 @@ void read_quoted_string(Context& context, const bool skip_opening_quote = false)
                     }
                     else
                     {
-                        write_utf8_char(context, utf16_to_utf8(code_unit, 0));
+                        write_utf8_char(writer, utf16_to_utf8(code_unit, 0));
                     }
                 }
                 catch (const encoding_error&)
@@ -663,16 +711,20 @@ void read_quoted_string(Context& context, const bool skip_opening_quote = false)
         throw parse_error(context, parse_error::EXPECTED_CLOSING_QUOTE);
     }
 
-    context.write(0);
+    return writer.finalize();
 }
 
-// reads any value that is not a string (or an object/array)
+// Reads primitive values that are not between quotes (null, bools and numbers).
+// Returns the value in raw text form and its termination character.
 template<typename Context>
-char read_unquoted_value(Context& context, const char first_char = 0)
+std::pair<std::string_view, char>
+read_unquoted_value(Context& context, const char first_char = 0)
 {
+    token_writer writer(context);
+
     if (first_char != 0)
     {
-        context.write(first_char);
+        writer.write(first_char);
     }
 
     char c;
@@ -681,7 +733,7 @@ char read_unquoted_value(Context& context, const char first_char = 0)
         (c = context.read()) != 0 && c != ',' && c != '}' && c != ']' &&
         !std::isspace(c))
     {
-        context.write(c);
+        writer.write(c);
     }
 
     if (c == 0)
@@ -689,9 +741,7 @@ char read_unquoted_value(Context& context, const char first_char = 0)
         throw parse_error(context, parse_error::UNTERMINATED_VALUE);
     }
 
-    context.write(0);
-
-    return c; // return the termination character (or it will be lost forever)
+    return {writer.finalize(), c};
 }
 
 } // namespace detail
@@ -711,7 +761,7 @@ class value final
 private:
 
     value_type m_type = Null;
-    const char* m_token = "";
+    std::string_view m_token = "";
     long m_long_value = 0;
     bool m_long_available = false;
     double m_double_value = 0.0;
@@ -726,7 +776,9 @@ public:
     {
     }
 
-    explicit value(const value_type type, const char* const token) noexcept
+    explicit value(
+        const value_type type,
+        const std::string_view token) noexcept
     : m_type(type)
     , m_token(token)
     {
@@ -734,7 +786,7 @@ public:
 
     explicit value(
         const value_type type,
-        const char* const token,
+        const std::string_view token,
         const long long_value,
         const bool long_available,
         const double double_value,
@@ -753,7 +805,7 @@ public:
         return m_type;
     }
 
-    const char* as_string() const noexcept
+    std::string_view as_string() const noexcept
     {
         return m_token;
     }
@@ -787,24 +839,25 @@ public:
 namespace detail
 {
 
+// Parses primitive values that are not between quotes (null, bools and numbers)
 template<typename Context>
-value parse_unquoted_value(const Context& context)
+value parse_unquoted_value(
+    const Context& context,
+    const std::string_view token)
 {
-    const char* const token = context.current_token();
-
-    if (std::strcmp(token, "true") == 0)
+    if (token == "true")
     {
         return value(Boolean, token, 1, true, 1.0, true);
     }
-    else if (std::strcmp(token, "false") == 0)
+    else if (token == "false")
     {
         return value(Boolean, token, 0, true, 0.0, true);
     }
-    else if (std::strcmp(token, "null") == 0)
+    else if (token == "null")
     {
         return value(Null, token);
     }
-    else
+    else // numbers
     {
         long long_value = 0;
         double double_value = 0.0;
@@ -841,30 +894,28 @@ value parse_unquoted_value(const Context& context)
     }
 }
 
+// Reads a value. Returns the parsed value and its termination character.
 template<typename Context>
 std::pair<value, char> read_value(Context& context, const char first_char)
 {
-    if (first_char == '{')
+    if (first_char == '{') // object
     {
         return {value(Object), 0};
     }
-    else if (first_char == '[')
+    else if (first_char == '[') // array
     {
         return {value(Array), 0};
     }
     else if (first_char == '"') // quoted string
     {
-        context.start_new_token();
-        read_quoted_string(context, true);
-
-        return {value(String, context.current_token()), 0};
+        return {value(String, read_quoted_string(context, true)), 0};
     }
     else // unquoted value
     {
-        context.start_new_token();
-        const char ending_char = read_unquoted_value(context, first_char);
+        const auto [token, ending_char] =
+            read_unquoted_value(context, first_char);
 
-        return {parse_unquoted_value(context), ending_char};
+        return {parse_unquoted_value(context, token), ending_char};
     }
 }
 
@@ -944,7 +995,7 @@ void parse_object(Context& context, Handler&& handler)
         END
     } state = OPENING_BRACKET;
 
-    const char* field_name = "";
+    std::string_view field_name = "";
 
     while (state != END)
     {
@@ -990,9 +1041,7 @@ void parse_object(Context& context, Handler&& handler)
             {
                 throw parse_error(context, parse_error::EXPECTED_OPENING_QUOTE);
             }
-            context.start_new_token();
-            detail::read_quoted_string(context, true);
-            field_name = context.current_token();
+            field_name = detail::read_quoted_string(context, true);
             state = COLON;
             break;
 
@@ -1149,27 +1198,28 @@ namespace detail
 {
 
 class dispatch_rule; // forward declaration
+class dispatch_rule_any; // forward declaration
+
+struct dispatch_rule_any_tag
+{
+};
 
 } // namespace detail
 
 class dispatch
 {
     friend class detail::dispatch_rule;
+    friend class detail::dispatch_rule_any;
 
 private:
 
-    const char* const m_field_name;
+    std::string_view m_field_name;
     bool m_handled = false;
 
 public:
 
-    explicit dispatch(const char* const field_name) noexcept
+    explicit dispatch(const std::string_view field_name) noexcept
     : m_field_name(field_name)
-    {
-    }
-
-    explicit dispatch(const std::string& field_name) noexcept
-    : dispatch(field_name.c_str())
     {
     }
 
@@ -1178,8 +1228,10 @@ public:
     dispatch& operator=(const dispatch&) = delete;
     dispatch& operator=(dispatch&&) = delete;
 
-    detail::dispatch_rule operator<<(const char* field_name) noexcept;
-    detail::dispatch_rule operator<<(const std::string& field_name) noexcept;
+    detail::dispatch_rule operator<<(std::string_view field_name) noexcept;
+
+    detail::dispatch_rule_any
+    operator<<(detail::dispatch_rule_any_tag) noexcept;
 }; // class dispatch
 
 namespace detail
@@ -1190,13 +1242,13 @@ class dispatch_rule
 private:
 
     dispatch& m_dispatch;
-    const char* const m_field_name;
+    std::string_view m_field_name;
 
 public:
 
     explicit dispatch_rule(
         dispatch& dispatch,
-        const char* const field_name) noexcept
+        const std::string_view field_name) noexcept
     : m_dispatch(dispatch)
     , m_field_name(field_name)
     {
@@ -1210,9 +1262,7 @@ public:
     template<typename Handler>
     dispatch& operator>>(Handler&& handler) const
     {
-        if (!m_dispatch.m_handled &&
-            (m_field_name == nullptr ||
-             std::strcmp(m_dispatch.m_field_name, m_field_name) == 0))
+        if (!m_dispatch.m_handled && m_dispatch.m_field_name == m_field_name)
         {
             handler();
             m_dispatch.m_handled = true;
@@ -1221,6 +1271,35 @@ public:
         return m_dispatch;
     }
 }; // class dispatch_rule
+
+class dispatch_rule_any
+{
+private:
+
+    dispatch& m_dispatch;
+
+public:
+
+    explicit dispatch_rule_any(dispatch& dispatch) noexcept
+    : m_dispatch(dispatch)
+    {
+    }
+
+    dispatch_rule_any(const dispatch_rule_any&) = delete;
+    dispatch_rule_any(dispatch_rule_any&&) noexcept = default;
+    dispatch_rule_any& operator=(const dispatch_rule_any&) = delete;
+    dispatch_rule_any& operator=(dispatch_rule_any&&) = delete;
+
+    template<typename Handler>
+    void operator>>(Handler&& handler) const
+    {
+        if (!m_dispatch.m_handled)
+        {
+            handler();
+            m_dispatch.m_handled = true;
+        }
+    }
+}; // class dispatch_rule_any
 
 template<typename Context>
 class ignore
@@ -1241,7 +1320,7 @@ public:
     ignore& operator=(const ignore&) = delete;
     ignore& operator=(ignore&&) = delete;
 
-    void operator()(const char*, const value&) const
+    void operator()(std::string_view, const value&) const
     {
         (*this)();
     }
@@ -1269,19 +1348,19 @@ public:
 
 } // namespace detail
 
-inline detail::dispatch_rule dispatch::operator<<(
-    const char* const field_name) noexcept
+inline detail::dispatch_rule
+dispatch::operator<<(const std::string_view field_name) noexcept
 {
     return detail::dispatch_rule(*this, field_name);
 }
 
-inline detail::dispatch_rule dispatch::operator<<(
-    const std::string& field_name) noexcept
+inline detail::dispatch_rule_any
+dispatch::operator<<(detail::dispatch_rule_any_tag) noexcept
 {
-    return *this << field_name.c_str();
+    return detail::dispatch_rule_any(*this);
 }
 
-inline constexpr const char* any = nullptr;
+inline constexpr const detail::dispatch_rule_any_tag any;
 
 template<typename Context>
 void ignore(Context& context)
