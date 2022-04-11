@@ -11,6 +11,7 @@
 #include <list>
 #include <stdexcept>
 #include <string_view>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -428,25 +429,25 @@ inline std::array<std::uint8_t, 4> utf32_to_utf8(const std::uint32_t utf32_char)
 
     if      (utf32_char <= 0x00007F)
     {
-        result[0] = utf32_char;
+        std::get<0>(result) = utf32_char;
     }
     else if (utf32_char <= 0x0007FF)
     {
-        result[0] = 0xC0 | ((utf32_char & (0x1F <<  6)) >>  6);
-        result[1] = 0x80 | ((utf32_char & (0x3F      ))      );
+        std::get<0>(result) = 0xC0 | ((utf32_char & (0x1F <<  6)) >>  6);
+        std::get<1>(result) = 0x80 | ((utf32_char & (0x3F      ))      );
     }
     else if (utf32_char <= 0x00FFFF)
     {
-        result[0] = 0xE0 | ((utf32_char & (0x0F << 12)) >> 12);
-        result[1] = 0x80 | ((utf32_char & (0x3F <<  6)) >>  6);
-        result[2] = 0x80 | ((utf32_char & (0x3F      ))      );
+        std::get<0>(result) = 0xE0 | ((utf32_char & (0x0F << 12)) >> 12);
+        std::get<1>(result) = 0x80 | ((utf32_char & (0x3F <<  6)) >>  6);
+        std::get<2>(result) = 0x80 | ((utf32_char & (0x3F      ))      );
     }
     else if (utf32_char <= 0x1FFFFF)
     {
-        result[0] = 0xF0 | ((utf32_char & (0x07 << 18)) >> 18);
-        result[1] = 0x80 | ((utf32_char & (0x3F << 12)) >> 12);
-        result[2] = 0x80 | ((utf32_char & (0x3F <<  6)) >>  6);
-        result[3] = 0x80 | ((utf32_char & (0x3F      ))      );
+        std::get<0>(result) = 0xF0 | ((utf32_char & (0x07 << 18)) >> 18);
+        std::get<1>(result) = 0x80 | ((utf32_char & (0x3F << 12)) >> 12);
+        std::get<2>(result) = 0x80 | ((utf32_char & (0x3F <<  6)) >>  6);
+        std::get<3>(result) = 0x80 | ((utf32_char & (0x3F      ))      );
     }
     else
     {
@@ -469,12 +470,12 @@ struct number_parse_error
 {
 };
 
-inline long parse_long(const std::string_view token, const int base = 10)
+inline long parse_long(const std::string_view token)
 {
     long result;
 
     const auto [parse_end_ptr, error] =
-        std::from_chars(token.begin(), token.end(), result, base);
+        std::from_chars(token.begin(), token.end(), result);
     if (parse_end_ptr != token.end() || error != std::errc())
     {
         // We could not parse the whole string as an integer or the number is
@@ -513,19 +514,65 @@ inline double parse_double(const std::string_view token)
     return result;
 }
 
-inline constexpr std::size_t UTF16_ESCAPE_SEQ_LENGTH = 4;
-
-inline std::uint16_t parse_utf16_escape_sequence(const char* const seq)
+inline std::uint8_t parse_hex_digit(const char c)
 {
-    for (std::size_t i = 0; i < UTF16_ESCAPE_SEQ_LENGTH; ++i)
+    switch (c)
     {
-        if (!std::isxdigit(seq[i]))
-        {
-            throw encoding_error();
-        }
+    case '0':
+        return 0x0;
+    case '1':
+        return 0x1;
+    case '2':
+        return 0x2;
+    case '3':
+        return 0x3;
+    case '4':
+        return 0x4;
+    case '5':
+        return 0x5;
+    case '6':
+        return 0x6;
+    case '7':
+        return 0x7;
+    case '8':
+        return 0x8;
+    case '9':
+        return 0x9;
+    case 'a':
+    case 'A':
+        return 0xa;
+    case 'b':
+    case 'B':
+        return 0xb;
+    case 'c':
+    case 'C':
+        return 0xc;
+    case 'd':
+    case 'D':
+        return 0xd;
+    case 'e':
+    case 'E':
+        return 0xe;
+    case 'f':
+    case 'F':
+        return 0xf;
+    default:
+        throw encoding_error();
+    }
+}
+
+inline std::uint16_t parse_utf16_escape_sequence(
+    const std::array<char, 4>& token)
+{
+    std::uint16_t result = 0;
+
+    for (const char c : token)
+    {
+        result <<= 4;
+        result |= parse_hex_digit(c);
     }
 
-    return static_cast<std::uint16_t>(parse_long(seq, 16));
+    return result;
 }
 
 template<typename Context>
@@ -533,15 +580,11 @@ void write_utf8_char(
     token_writer<Context>& writer,
     const std::array<std::uint8_t, 4>& c)
 {
-    for (std::size_t i = 0; i < c.size(); ++i)
-    {
-        const char byte = c[i];
-        if (i > 0 && byte == 0)
-        {
-            break;
-        }
+    writer.write(std::get<0>(c));
 
-        writer.write(byte);
+    for (std::size_t i = 1; i < c.size() && c[i]; ++i)
+    {
+        writer.write(c[i]);
     }
 }
 
@@ -562,7 +605,7 @@ std::string_view read_quoted_string(
     } state = (skip_opening_quote) ? CHARACTER : OPENING_QUOTE;
 
     bool empty = true;
-    char utf16_seq[UTF16_ESCAPE_SEQ_LENGTH + 1] = { 0 };
+    std::array<char, 4> utf16_seq {};
     std::size_t utf16_seq_offset = 0;
     std::uint16_t high_surrogate = 0;
 
@@ -650,7 +693,7 @@ std::string_view read_quoted_string(
 
             utf16_seq[utf16_seq_offset++] = c;
 
-            if (utf16_seq_offset == sizeof(utf16_seq) - 1)
+            if (utf16_seq_offset == utf16_seq.size())
             {
                 try
                 {
@@ -717,7 +760,7 @@ std::string_view read_quoted_string(
 // Reads primitive values that are not between quotes (null, bools and numbers).
 // Returns the value in raw text form and its termination character.
 template<typename Context>
-std::pair<std::string_view, char>
+std::tuple<std::string_view, char>
 read_unquoted_value(Context& context, const char first_char = 0)
 {
     token_writer writer(context);
@@ -896,7 +939,7 @@ value parse_unquoted_value(
 
 // Reads a value. Returns the parsed value and its termination character.
 template<typename Context>
-std::pair<value, char> read_value(Context& context, const char first_char)
+std::tuple<value, char> read_value(Context& context, const char first_char)
 {
     if (first_char == '{') // object
     {
@@ -945,10 +988,10 @@ void parse_init_helper(
 template<typename Context>
 value parse_value_helper(Context& context, char& c, bool& must_read)
 {
-    const std::pair<value, char> read_value_result =
+    const std::tuple<value, char> read_value_result =
         detail::read_value(context, c);
 
-    const value& v = read_value_result.first;
+    const value& v = std::get<0>(read_value_result);
 
     if (v.type() == Object)
     {
@@ -960,7 +1003,7 @@ value parse_value_helper(Context& context, char& c, bool& must_read)
     }
     else if (v.type() != String)
     {
-        c = read_value_result.second;
+        c = std::get<1>(read_value_result);
         must_read = false;
     }
 
