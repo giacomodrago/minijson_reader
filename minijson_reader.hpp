@@ -86,12 +86,12 @@ class buffer_context_base : public context_base
 {
 protected:
 
-    const char* m_read_buffer;
-    char* m_write_buffer;
+    const char* const m_read_buffer;
+    char* const m_write_buffer;
     std::size_t m_length;
     std::size_t m_read_offset = 0;
     std::size_t m_write_offset = 0;
-    const char* m_current_token = nullptr;
+    const char* m_current_token = m_write_buffer;
 
     explicit buffer_context_base(
         const char* const read_buffer,
@@ -101,7 +101,6 @@ protected:
     , m_write_buffer(write_buffer)
     , m_length(length)
     {
-        start_new_token();
     }
 
 public:
@@ -1159,7 +1158,7 @@ class dispatch
 
 private:
 
-    const char* m_field_name;
+    const char* const m_field_name;
     bool m_handled = false;
 
 public:
@@ -1191,7 +1190,7 @@ class dispatch_rule
 private:
 
     dispatch& m_dispatch;
-    const char* m_field_name;
+    const char* const m_field_name;
 
 public:
 
