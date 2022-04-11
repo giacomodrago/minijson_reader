@@ -59,7 +59,7 @@ public:
     void begin_nested(const context_nested_status nested_status) noexcept
     {
         m_nested_status = nested_status;
-        m_nesting_level++;
+        ++m_nesting_level;
     }
 
     void reset_nested_status() noexcept
@@ -71,7 +71,7 @@ public:
     {
         if (m_nesting_level > 0)
         {
-            m_nesting_level--;
+            --m_nesting_level;
         }
     }
 
@@ -203,7 +203,7 @@ public:
 
         if (m_stream)
         {
-            m_read_offset++;
+            ++m_read_offset;
 
             return c;
         }
@@ -517,7 +517,7 @@ inline constexpr std::size_t UTF16_ESCAPE_SEQ_LENGTH = 4;
 
 inline std::uint16_t parse_utf16_escape_sequence(const char* const seq)
 {
-    for (std::size_t i = 0; i < UTF16_ESCAPE_SEQ_LENGTH; i++)
+    for (std::size_t i = 0; i < UTF16_ESCAPE_SEQ_LENGTH; ++i)
     {
         if (!std::isxdigit(seq[i]))
         {
@@ -533,7 +533,7 @@ void write_utf8_char(
     token_writer<Context>& writer,
     const std::array<std::uint8_t, 4>& c)
 {
-    for (std::size_t i = 0; i < c.size(); i++)
+    for (std::size_t i = 0; i < c.size(); ++i)
     {
         const char byte = c[i];
         if (i > 0 && byte == 0)
