@@ -658,12 +658,12 @@ TEST(minijson_reader, value_example)
     ASSERT_EQ(minijson::Number, value.type());
 
     ASSERT_EQ("-0.42e-42", value.as<std::string_view>());
-    ASSERT_THROW(value.as<long>(), std::out_of_range);
+    ASSERT_THROW(value.as<long>(), std::range_error);
     ASSERT_THROW(value.as<bool>(), minijson::bad_value_cast);
     ASSERT_DOUBLE_EQ(-0.42e-42, value.as<double>());
 
     ASSERT_EQ("-0.42e-42", value.as<std::optional<std::string_view>>());
-    ASSERT_THROW(value.as<std::optional<long>>(), std::out_of_range);
+    ASSERT_THROW(value.as<std::optional<long>>(), std::range_error);
     ASSERT_THROW(value.as<std::optional<bool>>(), minijson::bad_value_cast);
     ASSERT_DOUBLE_EQ(-0.42e-42, value.as<std::optional<double>>().value_or(-1));
 }
@@ -815,8 +815,8 @@ TEST(minijson_reader_detail, parse_unquoted_value_integer)
 
         ASSERT_EQ("-9223372036854775808", value.as<std::string_view>());
         ASSERT_EQ(val, value.as<int64_t>());
-        ASSERT_THROW(value.as<uint64_t>(), std::out_of_range);
-        ASSERT_THROW(value.as<int32_t>(), std::out_of_range);
+        ASSERT_THROW(value.as<uint64_t>(), std::range_error);
+        ASSERT_THROW(value.as<int32_t>(), std::range_error);
         ASSERT_THROW(value.as<bool>(), minijson::bad_value_cast);
         ASSERT_DOUBLE_EQ(-9223372036854775808.0, value.as<double>());
 
@@ -847,14 +847,14 @@ TEST(minijson_reader_detail, parse_unquoted_value_integer_too_large)
     ASSERT_EQ(minijson::Number, value.type());
 
     ASSERT_EQ("9223372036854775808", value.as<std::string_view>());
-    ASSERT_THROW(value.as<int64_t>(), std::out_of_range);
+    ASSERT_THROW(value.as<int64_t>(), std::range_error);
     ASSERT_THROW(value.as<bool>(), minijson::bad_value_cast);
     ASSERT_DOUBLE_EQ(9223372036854775808.0, value.as<double>());
 
     ASSERT_EQ(
         "9223372036854775808",
         value.as<std::optional<std::string_view>>());
-    ASSERT_THROW(value.as<std::optional<int64_t>>(), std::out_of_range);
+    ASSERT_THROW(value.as<std::optional<int64_t>>(), std::range_error);
     ASSERT_THROW(value.as<std::optional<bool>>(), minijson::bad_value_cast);
     ASSERT_DOUBLE_EQ(
         9223372036854775808.0,
@@ -873,12 +873,12 @@ TEST(minijson_reader_detail, parse_unquoted_value_double)
     ASSERT_EQ(minijson::Number, value.type());
 
     ASSERT_EQ("42e+76", value.as<std::string_view>());
-    ASSERT_THROW(value.as<long>(), std::out_of_range);
+    ASSERT_THROW(value.as<long>(), std::range_error);
     ASSERT_THROW(value.as<bool>(), minijson::bad_value_cast);
     ASSERT_DOUBLE_EQ(42e+76, value.as<double>());
 
     ASSERT_EQ("42e+76", value.as<std::optional<std::string_view>>());
-    ASSERT_THROW(value.as<std::optional<long>>(), std::out_of_range);
+    ASSERT_THROW(value.as<std::optional<long>>(), std::range_error);
     ASSERT_THROW(value.as<std::optional<bool>>(), minijson::bad_value_cast);
     ASSERT_DOUBLE_EQ(42e+76, value.as<std::optional<double>>().value_or(-1));
 }

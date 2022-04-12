@@ -906,8 +906,7 @@ T as_impl(const value_type type, const std::string_view token)
             std::from_chars(token.begin(), token.end(), result);
         if (parse_end_ptr != token.end() || error != std::errc())
         {
-            throw std::out_of_range(
-                "value::as<T>() could not parse the number");
+            throw std::range_error("value::as<T>() could not parse the number");
         }
         return result;
     }
