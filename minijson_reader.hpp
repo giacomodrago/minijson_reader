@@ -901,7 +901,7 @@ T as_impl(const value_type type, const std::string_view token)
             throw bad_value_cast("value::as<T>(): value type is not Number");
         }
 
-        T result;
+        T result {}; // value initialize to silence compiler warnings
         const auto [parse_end_ptr, error] =
             std::from_chars(token.begin(), token.end(), result);
         if (parse_end_ptr != token.end() || error != std::errc())
