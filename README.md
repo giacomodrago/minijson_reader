@@ -30,7 +30,7 @@ minijson::buffer_context ctx(buffer, sizeof(buffer) - 1);
 
 ### `const_buffer_context`
 
-Similar to a [`buffer_context`](#buffercontext), but it does not modify the input buffer. `const_buffer_context` immediately allocates a buffer on the heap having the same size of the input buffer. It can throw `std::bad_alloc` only in the constructor, as no other memory allocations are performed after the object is created.
+Similar to a [`buffer_context`](#buffer_context), but it does not modify the input buffer. `const_buffer_context` immediately allocates a buffer on the heap having the same size of the input buffer. It can throw `std::bad_alloc` only in the constructor, as no other memory allocations are performed after the object is created.
 The input buffer must stay valid for the entire lifetime of the `const_buffer_context` instance.
 
 ```cpp
@@ -41,7 +41,7 @@ minijson::const_buffer_context ctx(buffer, strlen(buffer)); // may throw
 
 ### `istream_context`
 
-With `istream_context` the input is provided as a `std::istream`. The stream doesn't have to be seekable and will be read only once, one character at a time, until EOF is reached, or an error occurs. An arbitrary number of memory allocations may be performed upon construction and when the input is parsed with [`parse_object` or `parse_array`](#parseobject-and-parsearray), effectively changing the interface of those functions, that can throw `std::bad_alloc` when used with an `istream_context`.
+With `istream_context` the input is provided as a `std::istream`. The stream doesn't have to be seekable and will be read only once, one character at a time, until EOF is reached, or an error occurs. An arbitrary number of memory allocations may be performed upon construction and when the input is parsed with [`parse_object` or `parse_array`](#parse_object-and-parse_array), effectively changing the interface of those functions, that can throw `std::bad_alloc` when used with an `istream_context`.
 
 ```cpp
 // let input be a std::istream
@@ -70,7 +70,7 @@ minijson::parse_object(ctx, [&](std::string_view name, minijson::value value)
 });
 ```
 
-`name` is a UTF-8 encoded string representing the name of the field. Its lifetime is that of the parsing [context](#contexts), except for [`buffer_context`](#buffercontext), in which case it will stay valid until the underlying input buffer is destroyed.
+`name` is a UTF-8 encoded string representing the name of the field. Its lifetime is that of the parsing [context](#contexts), except for [`buffer_context`](#buffer_context), in which case it will stay valid until the underlying input buffer is destroyed.
 
 A JSON **array** must be parsed by using `parse_array`:
 
@@ -94,7 +94,7 @@ Field and element values are accessible through instances of the `minijson::valu
 
 - **`minijson::value_type type()`**. The type of the value (`String`, `Number`, `Boolean`, `Object`, `Array` or `Null`).
 - **`template<typename T> T as()`**. The value as a `T`, where `T` is one of the following:
-  - **`std::string_view`**. UTF-8 encoded string. This representation is available when `type()` is `String`, `Number` or `Boolean`; in all the other cases `minijson::bad_value_cast` is thrown. The lifetime of the returned `std::string_view` is that of the parsing [context](#contexts), except for [`buffer_context`](#buffercontext), in which case the `std::string_view` will stay valid until the underlying input buffer is destroyed.
+  - **`std::string_view`**. UTF-8 encoded string. This representation is available when `type()` is `String`, `Number` or `Boolean`; in all the other cases `minijson::bad_value_cast` is thrown. The lifetime of the returned `std::string_view` is that of the parsing [context](#contexts), except for [`buffer_context`](#buffer_context), in which case the `std::string_view` will stay valid until the underlying input buffer is destroyed.
   - **`bool`**. Only available when `type()` is `Boolean`; in all the other cases `minijson::bad_value_cast` is thrown.
   - **arithmetic types** (excluding `bool`). If `type()` is `Number`, the string representation of the value is contextually parsed by means of [`std::from_chars`](https://en.cppreference.com/w/cpp/utility/from_chars), and `std::out_of_bounds` is thrown in case the conversion fails because the value does not fit in the chosen arithmetic type. If `type()` is not `Number`, `minijson::bad_value_cast` is thrown.
   - **`std::optional<T>`**, where `T` is any of the above. The behavior is the same as for `T`, except that an empty optional is returned *if and only if* `type()` is `Null`. Exceptions caused by other failure modes are propagated.
@@ -232,7 +232,7 @@ parse_object(ctx, [&](std::string_view k, value v)
 
 ## Errors
 
-[`parse_object` and `parse_array`](#parseobject-and-parsearray) will throw a `minijson::parse_error` exception when something goes wrong.
+[`parse_object` and `parse_array`](#parse_object-and-parse_array) will throw a `minijson::parse_error` exception when something goes wrong.
 
 `parse_error` provides a `reason()` method that returns a member of the `parse_error::error_reason` enum:
 - `EXPECTED_OPENING_QUOTE`
