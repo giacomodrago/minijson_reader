@@ -2,13 +2,13 @@
 #define MINIJSON_READER_H
 
 #include <array>
-#include <cctype>
 #include <charconv>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <istream>
 #include <list>
+#include <optional>
 #include <stdexcept>
 #include <string_view>
 #include <tuple>
@@ -302,7 +302,8 @@ public:
         EXPECTED_COMMA_OR_CLOSING_BRACKET,
         NESTED_OBJECT_OR_ARRAY_NOT_PARSED,
         EXCEEDED_NESTING_LIMIT,
-        NULL_UTF16_CHARACTER
+        NULL_UTF16_CHARACTER,
+        EXPECTED_VALUE,
     };
 
 private:
@@ -372,6 +373,8 @@ public:
                 MJR_STRINGIFY(MJR_NESTING_LIMIT) ")";
         case NULL_UTF16_CHARACTER:
             return "Null UTF-16 character";
+        case EXPECTED_VALUE:
+            return "Expected a value";
         }
 
         return ""; // to suppress compiler warnings -- LCOV_EXCL_LINE
@@ -380,6 +383,42 @@ public:
 
 namespace detail
 {
+
+// Tells whether a character is acceptable JSON whitespace to separate tokens
+inline bool is_whitespace(const char c)
+{
+    switch (c)
+    {
+    case ' ':
+    case '\n':
+    case '\r':
+    case '\t':
+        return true;
+    }
+
+    return false;
+}
+
+// There is an std::isdigit() but it's weird (takes an int among other things)
+inline bool is_digit(const char c)
+{
+    switch (c)
+    {
+    case '0':
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    case '8':
+    case '9':
+        return true;
+    }
+
+    return false;
+}
 
 // this exception is not to be propagated outside minijson
 struct encoding_error
@@ -463,55 +502,6 @@ inline std::array<std::uint8_t, 4> utf16_to_utf8(
     const std::uint16_t low)
 {
     return utf32_to_utf8(utf16_to_utf32(high, low));
-}
-
-// this exception is not to be propagated outside minijson
-struct number_parse_error
-{
-};
-
-inline long parse_long(const std::string_view token)
-{
-    long result;
-
-    const auto [parse_end_ptr, error] =
-        std::from_chars(token.begin(), token.end(), result);
-    if (parse_end_ptr != token.end() || error != std::errc())
-    {
-        // We could not parse the whole string as an integer or the number is
-        // out of range
-        throw number_parse_error();
-    }
-
-    return result;
-}
-
-inline double parse_double(const std::string_view token)
-{
-    // Perform a check on the characters to make sure we reject NaN, INF, and
-    // whatever other special sequence JSON does not allow but std::from_chars()
-    // has to support
-    for (const char c : token)
-    {
-        if (!std::isdigit(c) &&
-            c != '+' && c != '-' && c != '.' && c != 'e' && c != 'E')
-        {
-            throw number_parse_error();
-        }
-    }
-
-    double result;
-
-    const auto [parse_end_ptr, error] =
-        std::from_chars(token.begin(), token.end(), result);
-    if (parse_end_ptr != token.end() || error != std::errc())
-    {
-        // We could not parse the whole string as a floating point number
-        // or the number is out of range
-        throw number_parse_error();
-    }
-
-    return result;
 }
 
 inline std::uint8_t parse_hex_digit(const char c)
@@ -757,12 +747,6 @@ std::string_view read_quoted_string(
     return writer.finalize();
 }
 
-// Tells whether a character is acceptable JSON whitespace to separate tokens
-inline bool is_whitespace(const char c)
-{
-    return c == ' ' || c == '\n' || c == '\r' || c == '\t';
-}
-
 // Reads primitive values that are not between quotes (null, bools and numbers).
 // Returns the value in raw text form and its termination character.
 template<typename Context>
@@ -771,6 +755,24 @@ read_unquoted_value(Context& context, const char first_char = 0)
 {
     token_writer writer(context);
 
+    const auto is_value_termination = [](const char c)
+    {
+        switch (c)
+        {
+            case ',':
+            case '}':
+            case ']':
+                return true;
+            default:
+                return is_whitespace(c);
+        }
+    };
+
+    if (is_value_termination(first_char))
+    {
+        throw parse_error(context, parse_error::EXPECTED_VALUE);
+    }
+
     if (first_char != 0)
     {
         writer.write(first_char);
@@ -778,9 +780,7 @@ read_unquoted_value(Context& context, const char first_char = 0)
 
     char c;
 
-    while (
-        (c = context.read()) != 0 && c != ',' && c != '}' && c != ']' &&
-        !is_whitespace(c))
+    while ((c = context.read()) != 0 && !is_value_termination(c))
     {
         writer.write(c);
     }
@@ -792,6 +792,10 @@ read_unquoted_value(Context& context, const char first_char = 0)
 
     return {writer.finalize(), c};
 }
+
+// forward declaration
+template<typename T>
+struct as;
 
 } // namespace detail
 
@@ -805,47 +809,31 @@ enum value_type
     Null
 };
 
+class bad_value_cast : public std::invalid_argument
+{
+public:
+
+    using std::invalid_argument::invalid_argument;
+};
+
 class value final
 {
+    template<typename T> friend struct detail::as;
+
 private:
 
     value_type m_type = Null;
     std::string_view m_token = "";
-    long m_long_value = 0;
-    bool m_long_available = false;
-    double m_double_value = 0.0;
-    bool m_double_available = false;
 
 public:
 
     explicit value() noexcept = default;
 
-    explicit value(const value_type type) noexcept
-    : m_type(type)
-    {
-    }
-
     explicit value(
         const value_type type,
-        const std::string_view token) noexcept
+        const std::string_view token = "") noexcept
     : m_type(type)
     , m_token(token)
-    {
-    }
-
-    explicit value(
-        const value_type type,
-        const std::string_view token,
-        const long long_value,
-        const bool long_available,
-        const double double_value,
-        const bool double_available) noexcept
-    : m_type(type)
-    , m_token(token)
-    , m_long_value(long_value)
-    , m_long_available(long_available)
-    , m_double_value(double_value)
-    , m_double_available(double_available)
     {
     }
 
@@ -854,39 +842,117 @@ public:
         return m_type;
     }
 
-    std::string_view as_string() const noexcept
+    template<typename T>
+    T as() const
     {
-        return m_token;
-    }
-
-    long as_long() const noexcept
-    {
-        return m_long_value;
-    }
-
-    bool long_available() const noexcept
-    {
-        return m_long_available;
-    }
-
-    bool as_bool() const noexcept
-    {
-        return static_cast<bool>(m_long_value);
-    }
-
-    double as_double() const noexcept
-    {
-        return m_double_value;
-    }
-
-    bool double_available() const noexcept
-    {
-        return m_double_available;
+        return detail::as<T>()(*this);
     }
 }; // class value
 
 namespace detail
 {
+
+// Trick to prevent static_assert() from always going off (see as_impl() below)
+template<typename>
+inline constexpr bool type_dependent_false = false;
+
+template<typename T>
+T as_impl(const value_type type, const std::string_view token)
+{
+    // Here we can assume that type is not Null: that was already checked
+    // by as<T> or its partial specialization as<std::optional<T>>
+
+    if (type == Object)
+    {
+        throw bad_value_cast(
+            "cannot call value::as<T>() on values of type Object: "
+            "you have to call parse_object() on the same context");
+    }
+
+    if (type == Array)
+    {
+        throw bad_value_cast(
+            "cannot call value::as<T>() on values of type Array: "
+            "you have to call parse_array() on the same context");
+    }
+
+    if constexpr (std::is_same_v<T, std::string_view>)
+    {
+        // We can offer string representations for values of type String,
+        // Number and Boolean, and we can do it for free
+        return token;
+    }
+    else if constexpr (std::is_same_v<T, bool>)
+    {
+        if (type != Boolean)
+        {
+            throw bad_value_cast("value::as<T>(): value type is not Boolean");
+        }
+
+        // If this value comes from parse_object() or parse_array(),
+        // as it should, we know that token is either "true" or "false".
+        // However, we do a paranoia check for emptiness.
+        return !token.empty() && token[0] == 't';
+    }
+    else if constexpr (std::is_arithmetic_v<T>)
+    {
+        if (type != Number)
+        {
+            throw bad_value_cast("value::as<T>(): value type is not Number");
+        }
+
+        T result;
+        const auto [parse_end_ptr, error] =
+            std::from_chars(token.begin(), token.end(), result);
+        if (parse_end_ptr != token.end() || error != std::errc())
+        {
+            throw std::out_of_range(
+                "value::as<T>() could not parse the number");
+        }
+        return result;
+    }
+    else // if constexpr
+    {
+        // We need the predicate of static_assert() to depend on T, otherwise
+        // the assert always goes off
+        static_assert(
+            type_dependent_false<T>,
+            "value::as<T>(): T is not one of the supported types "
+            "(std::string_view, bool, arithmetic types, plus all of the "
+            "above wrapped in std::optional)");
+    }
+}
+
+template<typename T>
+struct as
+{
+    T operator()(const value v) const
+    {
+        if (v.m_type == Null)
+        {
+            throw bad_value_cast(
+                "cannot call value::as<T>() on values of type Null: "
+                "consider checking value::type() first, or use "
+                "value::as<std::optional<T>>()");
+        }
+
+        return as_impl<T>(v.m_type, v.m_token);
+    }
+}; // struct as
+
+template<typename T>
+struct as<std::optional<T>>
+{
+    std::optional<T> operator()(const value v) const
+    {
+        if (v.m_type == Null)
+        {
+            return std::nullopt;
+        }
+
+        return as_impl<T>(v.m_type, v.m_token);
+    }
+}; // struct as<std::optional<T>>
 
 // Parses primitive values that are not between quotes (null, bools and numbers)
 template<typename Context>
@@ -894,53 +960,122 @@ value parse_unquoted_value(
     const Context& context,
     const std::string_view token)
 {
-    if (token == "true")
+    if (token == "true" || token == "false")
     {
-        return value(Boolean, token, 1, true, 1.0, true);
+        return value(Boolean, token);
     }
-    else if (token == "false")
-    {
-        return value(Boolean, token, 0, true, 0.0, true);
-    }
-    else if (token == "null")
-    {
-        return value(Null, token);
-    }
-    else // numbers
-    {
-        long long_value = 0;
-        double double_value = 0.0;
-        bool long_available = false;
-        bool double_available = false;
 
-        try
-        {
-            long_value = parse_long(token);
-            long_available = true;
-            double_value = long_value;
-            double_available = true;
-        }
-        catch (const number_parse_error&)
-        {
-            try
-            {
-                double_value = parse_double(token);
-                double_available = true;
-            }
-            catch (const number_parse_error&)
-            {
-                throw parse_error(context, parse_error::INVALID_VALUE);
-            }
-        }
-
-        return value(
-            Number,
-            token,
-            long_value,
-            long_available,
-            double_value,
-            double_available);
+    if (token == "null")
+    {
+        return value(Null);
     }
+
+    // Here we check that the number looks OK according to the JSON
+    // specification, but we do not convert it yet
+    // (that happens in value::as<T>() only as required)
+    enum
+    {
+        SIGN_OR_FIRST_DIGIT,
+        FIRST_DIGIT,
+        AFTER_LEADING_ZERO,
+        INTEGRAL_PART,
+        FRACTIONAL_PART_FIRST_DIGIT,
+        FRACTIONAL_PART,
+        EXPONENT_SIGN_OR_FIRST_DIGIT,
+        EXPONENT_FIRST_DIGIT,
+        EXPONENT,
+    } state = SIGN_OR_FIRST_DIGIT;
+
+    for (const char c : token)
+    {
+        switch (state)
+        {
+        case SIGN_OR_FIRST_DIGIT:
+            if (c == '-') // leading plus sign not allowed
+            {
+                state = FIRST_DIGIT;
+                break;
+            }
+            [[fallthrough]];
+        case FIRST_DIGIT:
+            if (c == '0')
+            {
+                // If zero is the first digit, then it must be the ONLY digit
+                // of the integral part
+                state = AFTER_LEADING_ZERO;
+                break;
+            }
+            if (is_digit(c))
+            {
+                state = INTEGRAL_PART;
+                break;
+            }
+            throw parse_error(context, parse_error::INVALID_VALUE);
+
+        case INTEGRAL_PART:
+            if (is_digit(c))
+            {
+                break;
+            }
+            [[fallthrough]];
+        case AFTER_LEADING_ZERO:
+            if (c == '.')
+            {
+                state = FRACTIONAL_PART_FIRST_DIGIT;
+                break;
+            }
+            if (c == 'e' || c == 'E')
+            {
+                state = EXPONENT_SIGN_OR_FIRST_DIGIT;
+                break;
+            }
+            throw parse_error(context, parse_error::INVALID_VALUE);
+
+        case FRACTIONAL_PART:
+            if (c == 'e' || c == 'E')
+            {
+                state = EXPONENT_SIGN_OR_FIRST_DIGIT;
+                break;
+            }
+            [[fallthrough]];
+        case FRACTIONAL_PART_FIRST_DIGIT:
+            if (is_digit(c))
+            {
+                state = FRACTIONAL_PART;
+                break;
+            }
+            throw parse_error(context, parse_error::INVALID_VALUE);
+
+        case EXPONENT_SIGN_OR_FIRST_DIGIT:
+            if (c == '+' || c == '-')
+            {
+                state = EXPONENT_FIRST_DIGIT;
+                break;
+            }
+            [[fallthrough]];
+        case EXPONENT_FIRST_DIGIT:
+        case EXPONENT:
+            if (is_digit(c))
+            {
+                state = EXPONENT;
+                break;
+            }
+            throw parse_error(context, parse_error::INVALID_VALUE);
+        }
+    }
+
+    switch (state)
+    {
+    case AFTER_LEADING_ZERO:
+    case INTEGRAL_PART:
+    case FRACTIONAL_PART:
+    case EXPONENT:
+        break;
+    default:
+        throw parse_error(context, parse_error::INVALID_VALUE);
+    }
+
+    return value(Number, token);
 }
 
 // Reads a value. Returns the parsed value and its termination character.
@@ -997,7 +1132,7 @@ value parse_value_helper(Context& context, char& c, bool& must_read)
     const std::tuple<value, char> read_value_result =
         detail::read_value(context, c);
 
-    const value& v = std::get<0>(read_value_result);
+    const value v = std::get<0>(read_value_result);
 
     if (v.type() == Object)
     {
@@ -1369,12 +1504,12 @@ public:
     ignore& operator=(const ignore&) = delete;
     ignore& operator=(ignore&&) = delete;
 
-    void operator()(std::string_view, const value&) const
+    void operator()(std::string_view, value) const
     {
         (*this)();
     }
 
-    void operator()(const value&) const
+    void operator()(value) const
     {
         (*this)();
     }

@@ -5,13 +5,13 @@
 ## Motivation and design
 
 When parsing JSON messages, most C/C++ libraries employ a DOM-based approach, i.e. they work by building an in-memory representation of object, and the client can then create/read/update/delete the properties of the object as needed, and most importantly access them in whatever order.
-While this is very convenient and provides maximum flexibility, there are situations in which memory allocations must or should preferably be avoided. `minijson_reader` is a callback-based parser, which can effectively parse JSON messages *without allocating a single byte of memory*, provided the input buffer can be modified.
+While this is very convenient and provides maximum flexibility, there are situations in which memory allocations must or should preferably be avoided. `minijson_reader` is a callback-based parser, which can effectively parse JSON messages *without allocating a single byte of memory on the heap*, provided the input buffer can be modified.
 
 [`minijson_writer`](https://github.com/giacomodrago/minijson_writer) is the independent counterpart for writing JSON messages.
 
 ## Dependencies
 
-`minijson_reader` is a single header file of ~1,300 LOC with **no library dependencies**.
+`minijson_reader` is a single header file of ~1,500 LOC with **no library dependencies**.
 **C++17** support is required.
 
 ## Contexts
@@ -30,10 +30,10 @@ minijson::buffer_context ctx(buffer, sizeof(buffer) - 1);
 
 ### `const_buffer_context`
 
-Similar to a `buffer_context`, but it does not modify the input buffer. `const_buffer_context` immediately allocates a buffer on the heap having the same size of the input buffer. It can throw `std::bad_alloc` only in the constructor, as no other memory allocations are performed after the object is created.
+Similar to a [`buffer_context`](#buffercontext), but it does not modify the input buffer. `const_buffer_context` immediately allocates a buffer on the heap having the same size of the input buffer. It can throw `std::bad_alloc` only in the constructor, as no other memory allocations are performed after the object is created.
 The input buffer must stay valid for the entire lifetime of the `const_buffer_context` instance.
 
-```
+```cpp
 const char* buffer = "{}";
 minijson::const_buffer_context ctx(buffer, strlen(buffer)); // may throw
 // ...
@@ -41,7 +41,7 @@ minijson::const_buffer_context ctx(buffer, strlen(buffer)); // may throw
 
 ### `istream_context`
 
-With `istream_context` the input is provided as a `std::istream`. The stream doesn't have to be seekable and will be read only once, one character at a time, until EOF is reached, or an error occurs. An arbitrary number of memory allocations may be performed upon construction and when the input is parsed with`parse_object` or `parse_array`, effectively changing the interface of those functions, that can throw `std::bad_alloc` when used with `istream_context`.
+With `istream_context` the input is provided as a `std::istream`. The stream doesn't have to be seekable and will be read only once, one character at a time, until EOF is reached, or an error occurs. An arbitrary number of memory allocations may be performed upon construction and when the input is parsed with [`parse_object` or `parse_array`](#parseobject-and-parsearray), effectively changing the interface of those functions, that can throw `std::bad_alloc` when used with an `istream_context`.
 
 ```cpp
 // let input be a std::istream
@@ -53,7 +53,7 @@ minijson::istream_context ctx(input);
 
 Contexts cannot be copied, nor moved. Even if the context classes may have public methods, the client must not rely on them, as they may change without prior notice. The client-facing interface is limited to the constructor and the destructor.
 
-The client can implement custom context classes, although the authors of this library do not yet provide a formal definition of a`Context` concept, which has to be reverse engineered from the source code, and can change without prior notice.
+The client can implement custom context classes, although the authors of this library do not yet provide a formal definition of a `Context` concept, which has to be reverse engineered from the source code, and can change without prior notice.
 
 
 ## Parsing messages
@@ -70,7 +70,7 @@ minijson::parse_object(ctx, [&](std::string_view name, minijson::value value)
 });
 ```
 
-`name` is a UTF-8 encoded string representing the name of the field.
+`name` is a UTF-8 encoded string representing the name of the field. Its lifetime is that of the parsing [context](#contexts), except for [`buffer_context`](#buffercontext), in which case it will stay valid until the underlying input buffer is destroyed.
 
 A JSON **array** must be parsed by using `parse_array`:
 
@@ -82,11 +82,9 @@ minijson::parse_array(ctx, [&](minijson::value value)
 });
 ```
 
-In both cases `value` represents the field or element value (`minijson::value` will be detailed in the following paragraph).
+In both cases [`minijson::value`](#value) represents the field or element value.
 
 Both `name` and `value` can be safely copied, and all their copies will stay valid until the context is destroyed (or the underlying buffer is destroyed in case `buffer_context` is used).
-
-Of course, in place of the lambda, you may use callbacks or function objects.
 
 ### `value`
 
@@ -94,15 +92,12 @@ Field and element values are accessible through instances of the `minijson::valu
 
 `value` has the following public methods:
 
-- `minijson::value_type type()`: the type of the value. Possible types are `String`, `Number`, `Boolean`, `Object`, `Array`, and `Null`.
-- `std::string_view as_string()`: the value as a UTF-8 encoded string. This representation is always available except when `type()` is `Object` or `Array`, in which case an empty string is returned. The string outlives the `value` instance, but its lifetime is limited by the one of the underlying context, except for `buffer_context`, in which case it will stay valid until the buffer itself is destroyed.
-- `long as_long()`: the value as a `long` integer. This representation is available when `type()` is `Number` and the number could be parsed by [`strtol`](http://en.cppreference.com/w/cpp/string/byte/strtol) without overflows, or when the type is `Boolean`, in which case  `1` or `0` are returned for `true` and `false` respectively. In all the other cases, `0` is returned.
-- `bool long_available()`: whether the `long` representation is available.
-- `double as_double()`: the value as a double-precision floating-point number. This representation is available when `type()` is `Number` and the number could be parsed by [`strtod`](http://en.cppreference.com/w/cpp/string/byte/strtod) without overflows or underflows, or when the type is `Boolean`, in which case `non-zero` or `0.0` are returned for `true` and `false` respectively. In all the other cases, `0.0` is returned.
-- `bool double_available()`: whether the `double` representation is available.
-- `bool as_bool()`: the value as a boolean. This method simply returns the value of `as_long()` cast to `bool`.
-
-Copying a `value` does not allocate memory, and no method of the class throws.
+- **`minijson::value_type type()`**. The type of the value (`String`, `Number`, `Boolean`, `Object`, `Array` or `Null`).
+- **`template<typename T> T as()`**. The value as a `T`, where `T` is one of the following:
+  - **`std::string_view`**. UTF-8 encoded string. This representation is available when `type()` is `String`, `Number` or `Boolean`; in all the other cases `minijson::bad_value_cast` is thrown. The lifetime of the returned `std::string_view` is that of the parsing [context](#contexts), except for [`buffer_context`](#buffercontext), in which case the `std::string_view` will stay valid until the underlying input buffer is destroyed.
+  - **`bool`**. Only available when `type()` is `Boolean`; in all the other cases `minijson::bad_value_cast` is thrown.
+  - **arithmetic types** (excluding `bool`). If `type()` is `Number`, the string representation of the value is contextually parsed by means of [`std::from_chars`](https://en.cppreference.com/w/cpp/utility/from_chars), and `std::out_of_bounds` is thrown in case the conversion fails because the value does not fit in the chosen arithmetic type. If `type()` is not `Number`, `minijson::bad_value_cast` is thrown.
+  - **`std::optional<T>`**, where `T` is any of the above. The behavior is the same as for `T`, except that an empty optional is returned *if and only if* `type()` is `Null`. Exceptions caused by other failure modes are propagated.
 
 ### Parsing nested objects or arrays
 
@@ -139,7 +134,8 @@ minijson::parse_object(ctx, [&](std::string_view name, minijson::value value)
 });
 ```
 
-Simply passing an empty callback *does not achieve the same result*. `minijson::ignore` will recursively parse (and ignore) all the nested elements of the nested element itself (if you are thinking about possible stack overflows, please refer to the **Errors** section of this document). `minijson::ignore` is intended for nested objects and arrays, but does no harm if used to ignore elements of any other type.
+Simply passing an empty callback *does not achieve the same result*. `minijson::ignore` will *recursively* parse (and ignore) all the nested elements of the nested element itself (if you are concerned about possible stack overflows, please refer to [Errors](#errors)). `minijson::ignore` is intended for nested objects and arrays, but does no harm if used to ignore elements of any other type.
+
 
 ## A more compact syntax
 
@@ -172,21 +168,30 @@ minijson::parse_object(ctx, [&](std::string_view name, minijson::value value)
 
 Please note the use of `minijson::any` to match any other field that has not been matched so far.
 
+
 ## A fully-featured example
 
 ```cpp
-char json_obj[] =
-    "{ \"field1\": 42, \"array\" : [ 1, 2, 3 ], \"field2\": \"asd\", "
-    "\"nested\" : { \"field1\" : 42.0, \"field2\" : true, "
-    "\"ignored_field\" : 0, "
-    "\"ignored_object\" : {\"a\":[0]} },"
-    "\"ignored_array\" : [4, 2, {\"a\":5}, [7]] }";
+char json_obj[] = R"json(
+{
+    "field1": 42,
+    "array": [1, 2, 3],
+    "field2": "He said \"hi\"",
+    "nested":
+    {
+        "field1": 42.0,
+        "field2": true,
+        "ignored_field": 0,
+        "ignored_object": {"a": [0]}
+    },
+    "ignored_array": [4, 2, {"a": 5}, [7]]
+}
+)json";
 
 struct obj_type
 {
     long field1 = 0;
-    std::string field2; // you can use a string_view,
-                        // but in that case beware of lifetimes!
+    std::string_view field2; // be mindful of lifetime!
     struct
     {
         double field1 = 0;
@@ -203,49 +208,48 @@ buffer_context ctx(json_obj, sizeof(json_obj) - 1);
 parse_object(ctx, [&](std::string_view k, value v)
 {
     dispatch (k)
-    <<"field1">> [&]{ obj.field1 = v.as_long(); }
-    <<"field2">> [&]{ obj.field2 = v.as_string(); }
+    <<"field1">> [&]{obj.field1 = v.as<long>();}
+    <<"field2">> [&]{obj.field2 = v.as<std::string_view>();}
     <<"nested">> [&]
     {
         parse_object(ctx, [&](std::string_view k, value v)
         {
             dispatch (k)
-            <<"field1">> [&]{ obj.nested.field1 = v.as_double(); }
-            <<"field2">> [&]{ obj.nested.field2 = v.as_bool(); }
-            <<any>> [&]{ ignore(ctx); };
+            <<"field1">> [&]{obj.nested.field1 = v.as<double>();}
+            <<"field2">> [&]{obj.nested.field2 = v.as<bool>();}
+            <<any>> [&]{ignore(ctx);};
         });
     }
     <<"array">> [&]
     {
-        parse_array(ctx, [&](value v)
-        {
-            obj.array.push_back(v.as_long());
-        });
+        parse_array(
+            ctx,
+            [&](value v) {obj.array.push_back(v.as<long>());});
     }
-    <<any>> [&]{ ignore(ctx); };
+    <<any>> [&]{ignore(ctx);};
 });
 ```
 
-You probably want to check that the `type()` of each `value` is the one you expect. This has been omitted for the sake of brevity.
-
 ## Errors
 
-`parse_object` and `parse_array` will throw a `minijson::parse_error` exception when something goes wrong.
+[`parse_object` and `parse_array`](#parseobject-and-parsearray) will throw a `minijson::parse_error` exception when something goes wrong.
 
 `parse_error` provides a `reason()` method that returns a member of the `parse_error::error_reason` enum:
-
 - `EXPECTED_OPENING_QUOTE`
 - `EXPECTED_UTF16_LOW_SURROGATE`: [learn more](http://en.wikipedia.org/wiki/UTF-16#U.2B10000_to_U.2B10FFFF)
 - `INVALID_ESCAPE_SEQUENCE`
+- `NULL_UTF16_CHARACTER`
 - `INVALID_UTF16_CHARACTER`
 - `EXPECTED_CLOSING_QUOTE`
 - `INVALID_VALUE`
+- `EXPECTED_VALUE`
 - `UNTERMINATED_VALUE`
 - `EXPECTED_OPENING_BRACKET`
 - `EXPECTED_COLON`
 - `EXPECTED_COMMA_OR_CLOSING_BRACKET`
 - `NESTED_OBJECT_OR_ARRAY_NOT_PARSED`: if this happens, make sure you are ignoring unnecessary nested objects or arrays in the proper way
 - `EXCEEDED_NESTING_LIMIT`: this means that the nesting depth exceeded a sanity limit that is defaulted to `32` and can be overriden at compile time by defining the `MJR_NESTING_LIMIT` macro. A sanity check on the nesting depth is essential to avoid stack overflows caused by malicious inputs such as `[[[[[[[[[[[[[[[...more nesting...]]]]]]]]]]]]]]]`.
-- `NULL_UTF16_CHARACTER`
 
 `parse_error` also has a `size_t offset()` method returning the approximate offset in the input message at which the error occurred. Beware: this offset is **not** guaranteed to be accurate, it can be out-of-bounds, and can change without prior notice in future versions of the library (for example, because it is made more accurate).
+
+`value::as()` may also throw exceptions as specified in [the relevant section](#value).
