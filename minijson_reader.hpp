@@ -28,6 +28,7 @@ namespace minijson
 namespace detail
 {
 
+// Base for all context classes
 class context_base
 {
 public:
@@ -82,6 +83,7 @@ public:
     }
 }; // class context_base
 
+// Base for context classes backed by a buffer
 class buffer_context_base : public context_base
 {
 protected:
@@ -91,7 +93,7 @@ protected:
     std::size_t m_length;
     std::size_t m_read_offset = 0;
     std::size_t m_write_offset = 0;
-    const char* m_current_token = m_write_buffer;
+    const char* m_current_literal = m_write_buffer;
 
     explicit buffer_context_base(
         const char* const read_buffer,
@@ -120,9 +122,9 @@ public:
         return m_read_offset;
     }
 
-    void start_new_token() noexcept
+    void begin_literal() noexcept
     {
-        m_current_token = m_write_buffer + m_write_offset;
+        m_current_literal = m_write_buffer + m_write_offset;
     }
 
     void write(const char c) noexcept
@@ -140,16 +142,62 @@ public:
         m_write_buffer[m_write_offset++] = c;
     }
 
-    const char* current_token() const noexcept
+    const char* current_literal() const noexcept
     {
-        return m_current_token;
+        return m_current_literal;
     }
 
-    std::size_t current_token_length() const noexcept
+    std::size_t current_literal_length() const noexcept
     {
-        return m_write_buffer + m_write_offset - m_current_token;
+        return m_write_buffer + m_write_offset - m_current_literal;
     }
 }; // class buffer_context_base
+
+// Utility class used throughout the library to read JSON literals (strings,
+// bools, nulls, numbers) from a context and write them back into the context
+// after applying the necessary transformations (e.g. escape sequences).
+template<typename Context>
+class literal_io final
+{
+private:
+
+    Context& m_context;
+
+public:
+
+    explicit literal_io(Context& context) noexcept
+    : m_context(context)
+    {
+        m_context.begin_literal();
+    }
+
+    Context& context() noexcept
+    {
+        return m_context;
+    }
+
+    char read() noexcept(noexcept(m_context.read()))
+    {
+        return m_context.read();
+    }
+
+    void write(const char c) noexcept(noexcept(m_context.write(c)))
+    {
+        m_context.write(c);
+    }
+
+    std::string_view finalize() noexcept(noexcept(m_context.write(0)))
+    {
+        // Get the length of the literal
+        const std::size_t length = m_context.current_literal_length();
+
+        // Write a null terminator. This is not strictly required, but brings
+        // some extra safety at negligible cost.
+        m_context.write(0);
+
+        return {m_context.current_literal(), length};
+    }
+}; // class literal_io
 
 } // namespace detail
 
@@ -189,7 +237,7 @@ private:
 
     std::istream& m_stream;
     std::size_t m_read_offset = 0;
-    std::list<std::vector<char>> m_tokens;
+    std::list<std::vector<char>> m_literals;
 
 public:
 
@@ -219,69 +267,31 @@ public:
         return m_read_offset;
     }
 
-    void start_new_token()
+    void begin_literal()
     {
-        m_tokens.emplace_back();
+        m_literals.emplace_back();
     }
 
     void write(const char c)
     {
-        m_tokens.back().push_back(c);
+        m_literals.back().push_back(c);
     }
 
-    // This method to retrieve the address of the current token MUST be called
-    // AFTER all the calls to write() for the current current token have been
+    // This method to retrieve the address of the current literal MUST be called
+    // AFTER all the calls to write() for the current current literal have been
     // performed
-    const char* current_token() const noexcept
+    const char* current_literal() const noexcept
     {
-        const std::vector<char>& token = m_tokens.back();
+        const std::vector<char>& literal = m_literals.back();
 
-        return !token.empty() ? token.data() : nullptr;
+        return !literal.empty() ? literal.data() : nullptr;
     }
 
-    std::size_t current_token_length() const noexcept
+    std::size_t current_literal_length() const noexcept
     {
-        return m_tokens.back().size();
+        return m_literals.back().size();
     }
 }; // class istream_context
-
-namespace detail
-{
-
-template<typename Context>
-class token_writer final
-{
-private:
-
-    Context& m_context;
-
-public:
-
-    explicit token_writer(Context& context) noexcept
-    : m_context(context)
-    {
-        m_context.start_new_token();
-    }
-
-    void write(const char c) noexcept(noexcept(m_context.write(c)))
-    {
-        m_context.write(c);
-    }
-
-    std::string_view finalize() noexcept(noexcept(m_context.write(0)))
-    {
-        // Get the length of the token
-        const std::size_t length = m_context.current_token_length();
-
-        // Write a null terminator. This is not strictly required, but brings
-        // some extra safety at negligible cost.
-        m_context.write(0);
-
-        return {m_context.current_token(), length};
-    }
-}; // class token_writer
-
-} // namespace detail
 
 class parse_error : public std::exception
 {
@@ -399,6 +409,21 @@ inline bool is_whitespace(const char c)
     return false;
 }
 
+// Tells whether a character can be used to terminate a value not enclosed in
+// quotes (i.e. Null, Boolean and Number)
+inline bool is_value_termination(const char c)
+{
+    switch (c)
+    {
+    case ',':
+    case '}':
+    case ']':
+        return true;
+    default:
+        return is_whitespace(c);
+    }
+}
+
 // There is an std::isdigit() but it's weird (takes an int among other things)
 inline bool is_digit(const char c)
 {
@@ -420,7 +445,8 @@ inline bool is_digit(const char c)
     return false;
 }
 
-// this exception is not to be propagated outside minijson
+// This exception is thrown internally by the functions dealing with UTF-16
+// escape sequences and is not propagated outside of the library
 struct encoding_error
 {
 };
@@ -433,7 +459,7 @@ inline std::uint32_t utf16_to_utf32(std::uint16_t high, std::uint16_t low)
     {
         if (low != 0)
         {
-            // since the high code unit is not a surrogate, the low code unit
+            // Since the high code unit is not a surrogate, the low code unit
             // should be zero
             throw encoding_error();
         }
@@ -444,13 +470,13 @@ inline std::uint32_t utf16_to_utf32(std::uint16_t high, std::uint16_t low)
     {
         if (high > 0xDBFF) // we already know high >= 0xD800
         {
-            // the high surrogate is not within the expected range
+            // The high surrogate is not within the expected range
             throw encoding_error();
         }
 
         if (low < 0xDC00 || low > 0xDFFF)
         {
-            // the low surrogate is not within the expected range
+            // The low surrogate is not within the expected range
             throw encoding_error();
         }
 
@@ -552,11 +578,11 @@ inline std::uint8_t parse_hex_digit(const char c)
 }
 
 inline std::uint16_t parse_utf16_escape_sequence(
-    const std::array<char, 4>& token)
+    const std::array<char, 4>& sequence)
 {
     std::uint16_t result = 0;
 
-    for (const char c : token)
+    for (const char c : sequence)
     {
         result <<= 4;
         result |= parse_hex_digit(c);
@@ -567,58 +593,43 @@ inline std::uint16_t parse_utf16_escape_sequence(
 
 template<typename Context>
 void write_utf8_char(
-    token_writer<Context>& writer,
+    literal_io<Context>& literal_io,
     const std::array<std::uint8_t, 4>& c)
 {
-    writer.write(std::get<0>(c));
+    literal_io.write(std::get<0>(c));
 
     for (std::size_t i = 1; i < c.size() && c[i]; ++i)
     {
-        writer.write(c[i]);
+        literal_io.write(c[i]);
     }
 }
 
+// Parses a string enclosed in quotes, dealing with escape sequences.
+// Assumes the opening quote has already been parsed.
 template<typename Context>
-std::string_view read_quoted_string(
-    Context& context,
-    const bool skip_opening_quote = false)
+std::string_view parse_string(Context& context)
 {
-    token_writer writer(context);
+    literal_io literal_io(context);
 
     enum
     {
-        OPENING_QUOTE,
         CHARACTER,
         ESCAPE_SEQUENCE,
         UTF16_SEQUENCE,
         CLOSED
-    } state = (skip_opening_quote) ? CHARACTER : OPENING_QUOTE;
+    } state = CHARACTER;
 
-    bool empty = true;
     std::array<char, 4> utf16_seq {};
     std::size_t utf16_seq_offset = 0;
     std::uint16_t high_surrogate = 0;
 
     char c;
 
-    while (state != CLOSED && (c = context.read()) != 0)
+    while (state != CLOSED && (c = literal_io.read()) != 0)
     {
-        empty = false;
-
         switch (state)
         {
-        case OPENING_QUOTE:
-
-            if (c != '"')
-            {
-                throw parse_error(context, parse_error::EXPECTED_OPENING_QUOTE);
-            }
-            state = CHARACTER;
-
-            break;
-
         case CHARACTER:
-
             if (c == '\\')
             {
                 state = ESCAPE_SEQUENCE;
@@ -634,40 +645,38 @@ std::string_view read_quoted_string(
             }
             else
             {
-                writer.write(c);
+                literal_io.write(c);
             }
-
             break;
 
         case ESCAPE_SEQUENCE:
-
             state = CHARACTER;
 
             switch (c)
             {
             case '"':
-                writer.write('"');
+                literal_io.write('"');
                 break;
             case '\\':
-                writer.write('\\');
+                literal_io.write('\\');
                 break;
             case '/':
-                writer.write('/');
+                literal_io.write('/');
                 break;
             case 'b':
-                writer.write('\b');
+                literal_io.write('\b');
                 break;
             case 'f':
-                writer.write('\f');
+                literal_io.write('\f');
                 break;
             case 'n':
-                writer.write('\n');
+                literal_io.write('\n');
                 break;
             case 'r':
-                writer.write('\r');
+                literal_io.write('\r');
                 break;
             case 't':
-                writer.write('\t');
+                literal_io.write('\t');
                 break;
             case 'u':
                 state = UTF16_SEQUENCE;
@@ -676,11 +685,9 @@ std::string_view read_quoted_string(
                 throw parse_error(
                     context, parse_error::INVALID_ESCAPE_SEQUENCE);
             }
-
             break;
 
         case UTF16_SEQUENCE:
-
             utf16_seq[utf16_seq_offset++] = c;
 
             if (utf16_seq_offset == utf16_seq.size())
@@ -701,7 +708,7 @@ std::string_view read_quoted_string(
                         // We were waiting for the low surrogate
                         // (that now is code_unit)
                         write_utf8_char(
-                            writer,
+                            literal_io,
                             utf16_to_utf8(high_surrogate, code_unit));
                         high_surrogate = 0;
                     }
@@ -711,7 +718,9 @@ std::string_view read_quoted_string(
                     }
                     else
                     {
-                        write_utf8_char(writer, utf16_to_utf8(code_unit, 0));
+                        write_utf8_char(
+                            literal_io,
+                            utf16_to_utf8(code_unit, 0));
                     }
                 }
                 catch (const encoding_error&)
@@ -724,73 +733,21 @@ std::string_view read_quoted_string(
 
                 state = CHARACTER;
             }
-
             break;
 
         case CLOSED: // to silence compiler warnings
-
             throw std::runtime_error(
                 "[minijson_reader] this line should never be reached, "
                 "please file a bug report"); // LCOV_EXCL_LINE
         }
     }
 
-    if (empty && !skip_opening_quote)
-    {
-        throw parse_error(context, parse_error::EXPECTED_OPENING_QUOTE);
-    }
-    else if (state != CLOSED)
+    if (state != CLOSED)
     {
         throw parse_error(context, parse_error::EXPECTED_CLOSING_QUOTE);
     }
 
-    return writer.finalize();
-}
-
-// Reads primitive values that are not between quotes (null, bools and numbers).
-// Returns the value in raw text form and its termination character.
-template<typename Context>
-std::tuple<std::string_view, char>
-read_unquoted_value(Context& context, const char first_char = 0)
-{
-    token_writer writer(context);
-
-    const auto is_value_termination = [](const char c)
-    {
-        switch (c)
-        {
-            case ',':
-            case '}':
-            case ']':
-                return true;
-            default:
-                return is_whitespace(c);
-        }
-    };
-
-    if (is_value_termination(first_char))
-    {
-        throw parse_error(context, parse_error::EXPECTED_VALUE);
-    }
-
-    if (first_char != 0)
-    {
-        writer.write(first_char);
-    }
-
-    char c;
-
-    while ((c = context.read()) != 0 && !is_value_termination(c))
-    {
-        writer.write(c);
-    }
-
-    if (c == 0)
-    {
-        throw parse_error(context, parse_error::UNTERMINATED_VALUE);
-    }
-
-    return {writer.finalize(), c};
+    return literal_io.finalize();
 }
 
 // forward declaration
@@ -823,7 +780,7 @@ class value final
 private:
 
     value_type m_type = Null;
-    std::string_view m_token = "";
+    std::string_view m_raw_value = "null";
 
 public:
 
@@ -831,15 +788,20 @@ public:
 
     explicit value(
         const value_type type,
-        const std::string_view token = "") noexcept
+        const std::string_view raw_value = "") noexcept
     : m_type(type)
-    , m_token(token)
+    , m_raw_value(raw_value)
     {
     }
 
     value_type type() const noexcept
     {
         return m_type;
+    }
+
+    std::string_view raw() const
+    {
+        return m_raw_value;
     }
 
     template<typename T>
@@ -857,7 +819,7 @@ template<typename>
 inline constexpr bool type_dependent_false = false;
 
 template<typename T>
-T as_impl(const value_type type, const std::string_view token)
+T as_impl(const value_type type, const std::string_view raw_value)
 {
     // Here we can assume that type is not Null: that was already checked
     // by as<T> or its partial specialization as<std::optional<T>>
@@ -878,9 +840,12 @@ T as_impl(const value_type type, const std::string_view token)
 
     if constexpr (std::is_same_v<T, std::string_view>)
     {
-        // We can offer string representations for values of type String,
-        // Number and Boolean, and we can do it for free
-        return token;
+        if (type != String)
+        {
+            throw bad_value_cast("value::as<T>(): value type is not String");
+        }
+
+        return raw_value;
     }
     else if constexpr (std::is_same_v<T, bool>)
     {
@@ -890,9 +855,9 @@ T as_impl(const value_type type, const std::string_view token)
         }
 
         // If this value comes from parse_object() or parse_array(),
-        // as it should, we know that token is either "true" or "false".
+        // as it should, we know that raw_value is either "true" or "false".
         // However, we do a paranoia check for emptiness.
-        return !token.empty() && token[0] == 't';
+        return !raw_value.empty() && raw_value[0] == 't';
     }
     else if constexpr (std::is_arithmetic_v<T>)
     {
@@ -902,9 +867,10 @@ T as_impl(const value_type type, const std::string_view token)
         }
 
         T result {}; // value initialize to silence compiler warnings
-        const auto [parse_end_ptr, error] =
-            std::from_chars(token.begin(), token.end(), result);
-        if (parse_end_ptr != token.end() || error != std::errc())
+        const auto begin = raw_value.data();
+        const auto end = raw_value.data() + raw_value.size();
+        const auto [parse_end, error] = std::from_chars(begin, end, result);
+        if (parse_end != end || error != std::errc())
         {
             throw std::range_error("value::as<T>() could not parse the number");
         }
@@ -935,7 +901,7 @@ struct as
                 "value::as<std::optional<T>>()");
         }
 
-        return as_impl<T>(v.m_type, v.m_token);
+        return as_impl<T>(v.m_type, v.m_raw_value);
     }
 }; // struct as
 
@@ -949,29 +915,92 @@ struct as<std::optional<T>>
             return std::nullopt;
         }
 
-        return as_impl<T>(v.m_type, v.m_token);
+        return as_impl<T>(v.m_type, v.m_raw_value);
     }
 }; // struct as<std::optional<T>>
 
-// Parses primitive values that are not between quotes (null, bools and numbers)
-template<typename Context>
-value parse_unquoted_value(
-    const Context& context,
-    const std::string_view token)
+// Convenience function to consume a verbatim sequence of characters
+// in a value not enclosed in quotes (in practice, Null and Boolean).
+// Returns the value termination character (e.g. ',').
+template<typename Context, std::size_t Size>
+char consume(
+    literal_io<Context>& literal_io,
+    const std::array<char, Size>& sequence)
 {
-    if (token == "true" || token == "false")
+    for (const char expected : sequence)
     {
-        return value(Boolean, token);
+        const char read = literal_io.read();
+        if (read == 0)
+        {
+            throw parse_error(
+                literal_io.context(),
+                parse_error::UNTERMINATED_VALUE);
+        }
+        if (read != expected)
+        {
+            throw parse_error(
+                literal_io.context(),
+                parse_error::INVALID_VALUE);
+        }
+        literal_io.write(read);
     }
 
-    if (token == "null")
+    const char read = literal_io.read();
+    if (read == 0)
     {
-        return value(Null);
+        throw parse_error(
+            literal_io.context(),
+            parse_error::UNTERMINATED_VALUE);
+    }
+    if (!is_value_termination(read))
+    {
+        throw parse_error(
+            literal_io.context(),
+            parse_error::INVALID_VALUE);
+    }
+    return read;
+}
+
+// Parses primitive values that are not enclosed in quotes
+// (i.e. Null, Boolean and Number).
+// Returns the value and its termination character (e.g. ',').
+template<typename Context>
+std::tuple<value, char>
+parse_unquoted_value(Context& context, const char first_char)
+{
+    literal_io literal_io(context);
+
+    char c = first_char;
+
+    // Cover "null", "true" and "false" cases
+    switch (c)
+    {
+    case 'n': // "null"
+        literal_io.write(c);
+        c = consume(literal_io, std::array {'u', 'l', 'l'});
+        return {value(Null, literal_io.finalize()), c};
+
+    case 't': // "true"
+        literal_io.write(c);
+        c = consume(literal_io, std::array {'r', 'u', 'e'});
+        return {value(Boolean, literal_io.finalize()), c};
+
+    case 'f': // "false"
+        literal_io.write(c);
+        c = consume(literal_io, std::array {'a', 'l', 's', 'e'});
+        return {value(Boolean, literal_io.finalize()), c};
     }
 
-    // Here we check that the number looks OK according to the JSON
-    // specification, but we do not convert it yet
-    // (that happens in value::as<T>() only as required)
+    // We are in the Number case.
+    // Let's check that the number looks OK according to the JSON
+    // specification, but let's not convert it yet
+    // (that happens in value::as<T>() only as required).
+
+    if (is_value_termination(c))
+    {
+        throw parse_error(context, parse_error::EXPECTED_VALUE);
+    }
+
     enum
     {
         SIGN_OR_FIRST_DIGIT,
@@ -985,8 +1014,17 @@ value parse_unquoted_value(
         EXPONENT,
     } state = SIGN_OR_FIRST_DIGIT;
 
-    for (const char c : token)
+    while (true)
     {
+        if (c == 0)
+        {
+            throw parse_error(context, parse_error::UNTERMINATED_VALUE);
+        }
+        if (is_value_termination(c))
+        {
+            break;
+        }
+
         switch (state)
         {
         case SIGN_OR_FIRST_DIGIT:
@@ -1061,6 +1099,9 @@ value parse_unquoted_value(
             }
             throw parse_error(context, parse_error::INVALID_VALUE);
         }
+
+        literal_io.write(c);
+        c = literal_io.read();
     }
 
     switch (state)
@@ -1074,36 +1115,13 @@ value parse_unquoted_value(
         throw parse_error(context, parse_error::INVALID_VALUE);
     }
 
-    return value(Number, token);
+    return {value(Number, literal_io.finalize()), c};
 }
 
-// Reads a value. Returns the parsed value and its termination character.
+// Helper function of parse_object() and parse_array() dealing with the opening
+// bracket/brace of arrays and objects in presence of nesting
 template<typename Context>
-std::tuple<value, char> read_value(Context& context, const char first_char)
-{
-    if (first_char == '{') // object
-    {
-        return {value(Object), 0};
-    }
-    else if (first_char == '[') // array
-    {
-        return {value(Array), 0};
-    }
-    else if (first_char == '"') // quoted string
-    {
-        return {value(String, read_quoted_string(context, true)), 0};
-    }
-    else // unquoted value
-    {
-        const auto [token, ending_char] =
-            read_unquoted_value(context, first_char);
-
-        return {parse_unquoted_value(context, token), ending_char};
-    }
-}
-
-template<typename Context>
-void parse_init_helper(
+void parse_init(
     const Context& context,
     char& c,
     bool& must_read) noexcept
@@ -1111,43 +1129,51 @@ void parse_init_helper(
     switch (context.nested_status())
     {
     case Context::NESTED_STATUS_NONE:
-        c = 0;
         must_read = true;
         break;
     case Context::NESTED_STATUS_OBJECT:
         c = '{';
+        // Since we are parsing a nested object, we already read an opening
+        // brace. The main loop does not need to read a character from the
+        // input.
         must_read = false;
         break;
     case Context::NESTED_STATUS_ARRAY:
+        // Since we are parsing a nested array, we already read an opening
+        // bracket. The main loop does not need to read a character from the
+        // input.
         c = '[';
         must_read = false;
         break;
     }
 }
 
+// Helper function of parse_object() and parse_array() parsing JSON values.
+// In case the value is a nested Object or Array, returns a placeholder value.
 template<typename Context>
-value parse_value_helper(Context& context, char& c, bool& must_read)
+value parse_value(Context& context, char& c, bool& must_read)
 {
-    const std::tuple<value, char> read_value_result =
-        detail::read_value(context, c);
-
-    const value v = std::get<0>(read_value_result);
-
-    if (v.type() == Object)
+    switch (c)
     {
+    case '{':
         context.begin_nested(Context::NESTED_STATUS_OBJECT);
-    }
-    else if (v.type() == Array)
-    {
-        context.begin_nested(Context::NESTED_STATUS_ARRAY);
-    }
-    else if (v.type() != String)
-    {
-        c = std::get<1>(read_value_result);
-        must_read = false;
-    }
+        return value(Object);
 
-    return v;
+    case '[':
+        context.begin_nested(Context::NESTED_STATUS_ARRAY);
+        return value(Array);
+
+    case '"':
+        return value(String, parse_string(context));
+
+    default: // Boolean, Null or Number
+        value v;
+        std::tie(v, c) = parse_unquoted_value(context, c);
+        // c contains the character after the value, no need to read again
+        // in the main loop
+        must_read = false;
+        return v;
+    }
 }
 
 } // namespace detail
@@ -1164,7 +1190,7 @@ void parse_object(Context& context, Handler&& handler)
     char c = 0;
     bool must_read = false;
 
-    parse_init_helper(context, c, must_read);
+    detail::parse_init(context, c, must_read);
     context.reset_nested_status();
 
     enum
@@ -1224,7 +1250,7 @@ void parse_object(Context& context, Handler&& handler)
             {
                 throw parse_error(context, parse_error::EXPECTED_OPENING_QUOTE);
             }
-            field_name = detail::read_quoted_string(context, true);
+            field_name = detail::parse_string(context);
             state = COLON;
             break;
 
@@ -1237,7 +1263,7 @@ void parse_object(Context& context, Handler&& handler)
             break;
 
         case FIELD_VALUE:
-            handler(field_name, parse_value_helper(context, c, must_read));
+            handler(field_name, detail::parse_value(context, c, must_read));
             state = COMMA_OR_CLOSING_BRACKET;
             break;
 
@@ -1258,7 +1284,6 @@ void parse_object(Context& context, Handler&& handler)
             break;
 
         case END:
-
             throw std::runtime_error(
                 "[minijson_reader] this line should never be reached, "
                 "please file a bug report"); // LCOV_EXCL_LINE
@@ -1287,7 +1312,7 @@ void parse_array(Context& context, Handler&& handler)
     char c = 0;
     bool must_read = false;
 
-    parse_init_helper(context, c, must_read);
+    detail::parse_init(context, c, must_read);
     context.reset_nested_status();
 
     enum
@@ -1339,7 +1364,7 @@ void parse_array(Context& context, Handler&& handler)
             [[fallthrough]];
 
         case VALUE:
-            handler(parse_value_helper(context, c, must_read));
+            handler(detail::parse_value(context, c, must_read));
             state = COMMA_OR_CLOSING_BRACKET;
             break;
 
@@ -1360,7 +1385,6 @@ void parse_array(Context& context, Handler&& handler)
             break;
 
         case END:
-
             throw std::runtime_error(
                 "[minijson_reader] this line should never be reached, "
                 "please file a bug report"); // LCOV_EXCL_LINE
