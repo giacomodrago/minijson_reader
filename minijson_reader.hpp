@@ -249,13 +249,13 @@ public:
 
     char read()
     {
-        const char c = m_stream.get();
+        const int c = m_stream.get();
 
         if (m_stream)
         {
             ++m_read_offset;
 
-            return c;
+            return static_cast<char>(c);
         }
         else
         {
@@ -534,31 +534,50 @@ inline std::array<std::uint8_t, 4> utf32_to_utf8(const std::uint32_t utf32_char)
 {
     std::array<std::uint8_t, 4> result {};
 
-    if      (utf32_char <= 0x00007F)
+    // All the static_casts below are to please VS2022
+    if (utf32_char <= 0x00007F)
     {
-        std::get<0>(result) = utf32_char;
+        std::get<0>(result) = static_cast<std::uint8_t>(utf32_char);
     }
     else if (utf32_char <= 0x0007FF)
     {
-        std::get<0>(result) = 0xC0 | ((utf32_char & (0x1F <<  6)) >>  6);
-        std::get<1>(result) = 0x80 | ((utf32_char & (0x3F      ))      );
+        std::get<0>(result) =
+            static_cast<std::uint8_t>(
+                0xC0 | ((utf32_char & (0x1F << 6)) >> 6));
+        std::get<1>(result) =
+            static_cast<std::uint8_t>(
+                0x80 | (utf32_char & 0x3F));
     }
     else if (utf32_char <= 0x00FFFF)
     {
-        std::get<0>(result) = 0xE0 | ((utf32_char & (0x0F << 12)) >> 12);
-        std::get<1>(result) = 0x80 | ((utf32_char & (0x3F <<  6)) >>  6);
-        std::get<2>(result) = 0x80 | ((utf32_char & (0x3F      ))      );
+        std::get<0>(result) =
+            static_cast<std::uint8_t>(
+                0xE0 | ((utf32_char & (0x0F << 12)) >> 12));
+        std::get<1>(result) =
+            static_cast<std::uint8_t>(
+                0x80 | ((utf32_char & (0x3F << 6)) >> 6));
+        std::get<2>(result) =
+            static_cast<std::uint8_t>(
+                0x80 | (utf32_char & 0x3F));
     }
     else if (utf32_char <= 0x1FFFFF)
     {
-        std::get<0>(result) = 0xF0 | ((utf32_char & (0x07 << 18)) >> 18);
-        std::get<1>(result) = 0x80 | ((utf32_char & (0x3F << 12)) >> 12);
-        std::get<2>(result) = 0x80 | ((utf32_char & (0x3F <<  6)) >>  6);
-        std::get<3>(result) = 0x80 | ((utf32_char & (0x3F      ))      );
+        std::get<0>(result) =
+            static_cast<std::uint8_t>(
+                0xF0 | ((utf32_char & (0x07 << 18)) >> 18));
+        std::get<1>(result) =
+            static_cast<std::uint8_t>(
+                0x80 | ((utf32_char & (0x3F << 12)) >> 12));
+        std::get<2>(result) =
+            static_cast<std::uint8_t>(
+                0x80 | ((utf32_char & (0x3F << 6)) >> 6));
+        std::get<3>(result) =
+            static_cast<std::uint8_t>(
+                0x80 | (utf32_char & 0x3F));
     }
     else
     {
-        // invalid code unit
+        // Invalid code unit
         throw encoding_error();
     }
 

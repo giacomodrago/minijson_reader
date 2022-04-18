@@ -1398,12 +1398,12 @@ struct parse_array_nested_handler
 
             ASSERT_EQ(minijson::Array, v.type());
 
-            std::size_t counter = 0;
+            std::size_t counter_nested = 0;
             minijson::parse_array(
                 context,
                 [&](const minijson::value v)
                 {
-                    switch (counter++)
+                    switch (counter_nested++)
                     {
                     case 0:
                         ASSERT_EQ(minijson::Number, v.type());
@@ -1417,7 +1417,7 @@ struct parse_array_nested_handler
                         FAIL();
                     }
                 });
-            ASSERT_EQ(counter, 2);
+            ASSERT_EQ(counter_nested, 2);
         }
     };
 };
