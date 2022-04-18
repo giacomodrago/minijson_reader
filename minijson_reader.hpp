@@ -11,6 +11,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string_view>
+#include <ostream>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -390,6 +391,47 @@ public:
         return ""; // to suppress compiler warnings -- LCOV_EXCL_LINE
     }
 }; // class parse_error
+
+inline std::ostream& operator<<(
+    std::ostream& out,
+    const parse_error::error_reason reason)
+{
+    switch (reason)
+    {
+        case parse_error::UNKNOWN:
+            return out << "UNKNOWN";
+        case parse_error::EXPECTED_OPENING_QUOTE:
+            return out << "EXPECTED_OPENING_QUOTE";
+        case parse_error::EXPECTED_UTF16_LOW_SURROGATE:
+            return out << "EXPECTED_UTF16_LOW_SURROGATE";
+        case parse_error::INVALID_ESCAPE_SEQUENCE:
+            return out << "INVALID_ESCAPE_SEQUENCE";
+        case parse_error::INVALID_UTF16_CHARACTER:
+            return out << "INVALID_UTF16_CHARACTER";
+        case parse_error::EXPECTED_CLOSING_QUOTE:
+            return out << "EXPECTED_CLOSING_QUOTE";
+        case parse_error::INVALID_VALUE:
+            return out << "INVALID_VALUE";
+        case parse_error::UNTERMINATED_VALUE:
+            return out << "UNTERMINATED_VALUE";
+        case parse_error::EXPECTED_OPENING_BRACKET:
+            return out << "EXPECTED_OPENING_BRACKET";
+        case parse_error::EXPECTED_COLON:
+            return out << "EXPECTED_COLON";
+        case parse_error::EXPECTED_COMMA_OR_CLOSING_BRACKET:
+            return out << "EXPECTED_COMMA_OR_CLOSING_BRACKET";
+        case parse_error::NESTED_OBJECT_OR_ARRAY_NOT_PARSED:
+            return out << "NESTED_OBJECT_OR_ARRAY_NOT_PARSED";
+        case parse_error::EXCEEDED_NESTING_LIMIT:
+            return out << "EXCEEDED_NESTING_LIMIT";
+        case parse_error::NULL_UTF16_CHARACTER:
+            return out << "NULL_UTF16_CHARACTER";
+        case parse_error::EXPECTED_VALUE:
+            return out << "EXPECTED_VALUE";
+    }
+
+    return out << "UNKNOWN";
+}
 
 namespace detail
 {
