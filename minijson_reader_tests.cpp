@@ -462,15 +462,15 @@ TEST(minijson_reader_detail, parse_string_invalid)
 {
     parse_string_invalid_helper(
         "",
-        minijson::parse_error::EXPECTED_CLOSING_QUOTE,
+        minijson::parse_error::UNTERMINATED_VALUE,
         0,
-        "Expected closing quote");
+        "Unterminated value");
 
     parse_string_invalid_helper(
         "asd",
-        minijson::parse_error::EXPECTED_CLOSING_QUOTE,
+        minijson::parse_error::UNTERMINATED_VALUE,
         2,
-        "Expected closing quote");
+        "Unterminated value");
 
     parse_string_invalid_helper(
         "\\h\"",
@@ -480,9 +480,9 @@ TEST(minijson_reader_detail, parse_string_invalid)
 
     parse_string_invalid_helper(
         "\\u0rff\"",
-        minijson::parse_error::INVALID_UTF16_CHARACTER,
-        5,
-        "Invalid UTF-16 character");
+        minijson::parse_error::INVALID_ESCAPE_SEQUENCE,
+        3,
+        "Invalid escape sequence");
 
     parse_string_invalid_helper(
         "\\uD800\\uD7FF\"",
@@ -1490,16 +1490,16 @@ TEST(minijson_reader, parse_object_truncated)
                 ASSERT_EQ(parse_error::EXPECTED_OPENING_QUOTE, e.reason());
                 break;
             case 2:
-                ASSERT_EQ(parse_error::EXPECTED_CLOSING_QUOTE, e.reason());
+                ASSERT_EQ(parse_error::UNTERMINATED_VALUE, e.reason());
                 break;
             case 3:
-                ASSERT_EQ(parse_error::EXPECTED_CLOSING_QUOTE, e.reason());
+                ASSERT_EQ(parse_error::UNTERMINATED_VALUE, e.reason());
                 break;
             case 4:
-                ASSERT_EQ(parse_error::EXPECTED_CLOSING_QUOTE, e.reason());
+                ASSERT_EQ(parse_error::UNTERMINATED_VALUE, e.reason());
                 break;
             case 5:
-                ASSERT_EQ(parse_error::EXPECTED_CLOSING_QUOTE, e.reason());
+                ASSERT_EQ(parse_error::UNTERMINATED_VALUE, e.reason());
                 break;
             case 6:
                 ASSERT_EQ(parse_error::EXPECTED_COLON, e.reason());
@@ -1509,16 +1509,16 @@ TEST(minijson_reader, parse_object_truncated)
                 ASSERT_EQ(parse_error::UNTERMINATED_VALUE, e.reason());
                 break;
             case 8:
-                ASSERT_EQ(parse_error::EXPECTED_CLOSING_QUOTE, e.reason());
+                ASSERT_EQ(parse_error::UNTERMINATED_VALUE, e.reason());
                 break;
             case 9:
-                ASSERT_EQ(parse_error::EXPECTED_CLOSING_QUOTE, e.reason());
+                ASSERT_EQ(parse_error::UNTERMINATED_VALUE, e.reason());
                 break;
             case 10:
-                ASSERT_EQ(parse_error::EXPECTED_CLOSING_QUOTE, e.reason());
+                ASSERT_EQ(parse_error::UNTERMINATED_VALUE, e.reason());
                 break;
             case 11:
-                ASSERT_EQ(parse_error::EXPECTED_CLOSING_QUOTE, e.reason());
+                ASSERT_EQ(parse_error::UNTERMINATED_VALUE, e.reason());
                 break;
             case 12:
                 ASSERT_EQ(
@@ -1530,16 +1530,16 @@ TEST(minijson_reader, parse_object_truncated)
                 ASSERT_EQ(parse_error::EXPECTED_OPENING_QUOTE, e.reason());
                 break;
             case 14:
-                ASSERT_EQ(parse_error::EXPECTED_CLOSING_QUOTE, e.reason());
+                ASSERT_EQ(parse_error::UNTERMINATED_VALUE, e.reason());
                 break;
             case 15:
-                ASSERT_EQ(parse_error::EXPECTED_CLOSING_QUOTE, e.reason());
+                ASSERT_EQ(parse_error::UNTERMINATED_VALUE, e.reason());
                 break;
             case 16:
-                ASSERT_EQ(parse_error::EXPECTED_CLOSING_QUOTE, e.reason());
+                ASSERT_EQ(parse_error::UNTERMINATED_VALUE, e.reason());
                 break;
             case 17:
-                ASSERT_EQ(parse_error::EXPECTED_CLOSING_QUOTE, e.reason());
+                ASSERT_EQ(parse_error::UNTERMINATED_VALUE, e.reason());
                 break;
             case 18:
                 ASSERT_EQ(parse_error::EXPECTED_COLON, e.reason());
@@ -1557,19 +1557,19 @@ TEST(minijson_reader, parse_object_truncated)
                 ASSERT_EQ(parse_error::EXPECTED_OPENING_QUOTE, e.reason());
                 break;
             case 23:
-                ASSERT_EQ(parse_error::EXPECTED_CLOSING_QUOTE, e.reason());
+                ASSERT_EQ(parse_error::UNTERMINATED_VALUE, e.reason());
                 break;
             case 24:
-                ASSERT_EQ(parse_error::EXPECTED_CLOSING_QUOTE, e.reason());
+                ASSERT_EQ(parse_error::UNTERMINATED_VALUE, e.reason());
                 break;
             case 25:
-                ASSERT_EQ(parse_error::EXPECTED_CLOSING_QUOTE, e.reason());
+                ASSERT_EQ(parse_error::UNTERMINATED_VALUE, e.reason());
                 break;
             case 26:
-                ASSERT_EQ(parse_error::EXPECTED_CLOSING_QUOTE, e.reason());
+                ASSERT_EQ(parse_error::UNTERMINATED_VALUE, e.reason());
                 break;
             case 27:
-                ASSERT_EQ(parse_error::EXPECTED_CLOSING_QUOTE, e.reason());
+                ASSERT_EQ(parse_error::UNTERMINATED_VALUE, e.reason());
                 break;
             case 28:
                 ASSERT_EQ(parse_error::EXPECTED_COLON, e.reason());
@@ -1630,16 +1630,16 @@ TEST(minijson_reader, parse_array_truncated)
                 ASSERT_EQ(parse_error::UNTERMINATED_VALUE, e.reason());
                 break;
             case 2:
-                ASSERT_EQ(parse_error::EXPECTED_CLOSING_QUOTE, e.reason());
+                ASSERT_EQ(parse_error::UNTERMINATED_VALUE, e.reason());
                 break;
             case 3:
-                ASSERT_EQ(parse_error::EXPECTED_CLOSING_QUOTE, e.reason());
+                ASSERT_EQ(parse_error::UNTERMINATED_VALUE, e.reason());
                 break;
             case 4:
-                ASSERT_EQ(parse_error::EXPECTED_CLOSING_QUOTE, e.reason());
+                ASSERT_EQ(parse_error::UNTERMINATED_VALUE, e.reason());
                 break;
             case 5:
-                ASSERT_EQ(parse_error::EXPECTED_CLOSING_QUOTE, e.reason());
+                ASSERT_EQ(parse_error::UNTERMINATED_VALUE, e.reason());
                 break;
             case 6:
                 ASSERT_EQ(
@@ -1847,15 +1847,19 @@ TEST(minijson_reader, parse_object_invalid)
 
     parse_object_invalid_helper(
         "{\"\\ufffx\":null}",
-        minijson::parse_error::INVALID_UTF16_CHARACTER);
+        minijson::parse_error::INVALID_ESCAPE_SEQUENCE);
 
     parse_object_invalid_helper(
         "{\"x\":\"\\ufffx\"}",
-        minijson::parse_error::INVALID_UTF16_CHARACTER);
+        minijson::parse_error::INVALID_ESCAPE_SEQUENCE);
+
+    parse_object_invalid_helper(
+        "{\"x\":\"\\ufff",
+        minijson::parse_error::UNTERMINATED_VALUE);
 
     parse_object_invalid_helper(
         "{\"\\u\":\"\"}",
-        minijson::parse_error::INVALID_UTF16_CHARACTER);
+        minijson::parse_error::INVALID_ESCAPE_SEQUENCE);
 
     parse_object_invalid_helper(
         "{\"\\ud800\":null}",
@@ -1957,11 +1961,11 @@ TEST(minijson_reader, parse_array_invalid)
 
     parse_array_invalid_helper(
         "[\"\\ufffx\"]",
-        minijson::parse_error::INVALID_UTF16_CHARACTER);
+        minijson::parse_error::INVALID_ESCAPE_SEQUENCE);
 
     parse_array_invalid_helper(
         "[\"\\ufff\"]",
-        minijson::parse_error::INVALID_UTF16_CHARACTER);
+        minijson::parse_error::INVALID_ESCAPE_SEQUENCE);
 
     parse_array_invalid_helper(
         "[\"\\ud800\"]",
