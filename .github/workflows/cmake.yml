@@ -2,54 +2,90 @@ name: CMake
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request:
-    branches: [ master ]
+    branches: [master]
 
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, windows-latest]
         build_type: [Debug, Release]
-        compiler: [g++-11, clang++]
+        compiler: [g++-11, clang++, cl]
+
+        exclude:
+          - os: windows-latest
+            compiler: g++-11
+          - os: windows-latest
+            compiler: clang++
+          - os: ubuntu-latest
+            compiler: cl
 
     runs-on: ${{matrix.os}}
 
     steps:
     - uses: actions/checkout@v3
 
-    - # We always install gcc 11 because clang relies on gcc's implementation of
-      # the standard library, and we require a modern one
-      name: Install gcc 11
-      run: sudo apt-get install g++-11
+    - if: ${{matrix.os == 'ubuntu-latest'}}
+      # We always install gcc 11 on Linux because clang relies on gcc's
+      # implementation of the standard library, and we require a modern one
+      name: (Linux Only) Install gcc 11 and gcovr
+      run: sudo apt-get install g++-11 gcovr
 
-    - if: ${{matrix.compiler == 'clang++'}}
-      name: Install clang
+    - if: ${{matrix.os == 'ubuntu-latest' && matrix.compiler == 'clang++'}}
+      name: (Linux Only) Install clang
       uses: egor-tensin/setup-clang@v1
       with:
         version: 13
         platform: x64
 
-    - name: Install GTest
+    - if: ${{matrix.os == 'ubuntu-latest'}}
+      name: (Linux) Install GTest
       run: sudo apt-get install -y libgtest-dev
 
-    - name: Install Valgrind
+    - if: ${{matrix.os == 'windows-latest'}}
+      name: (Windows) Install GTest
+      # TODO: try to cache this artifact (e.g. using lukka/run-vcpkg)
+      run: vcpkg install gtest:x64-windows
+
+    - if: ${{matrix.os == 'ubuntu-latest'}}
+      name: (Linux Only) Install Valgrind
       run: sudo apt-get install -y valgrind
 
-    - name: Configure CMake
+    - if: ${{matrix.os == 'ubuntu-latest'}}
+      name: (Linux) Configure CMake
       run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.build_type}}
       env:
         CXX: ${{matrix.compiler}}
 
+    - if: ${{matrix.os == 'windows-latest'}}
+      name: (Windows) Configure CMake
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake
+
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}}
+
+    - if: ${{matrix.os == 'ubuntu-latest' && matrix.compiler == 'g++-11' && matrix.build_type == 'Debug'}}
+      name: (Linux/gcc/debug Only) Code coverage report
+      working-directory: ${{github.workspace}}/build
+      run: cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}} --target coverage
+      env:
+        GCOV: gcov-11
+
+    - if: ${{matrix.os == 'ubuntu-latest' && matrix.compiler == 'g++-11' && matrix.build_type == 'Debug'}}
+      name: (Linux/gcc/debug Only) Archive code coverage results
+      uses: actions/upload-artifact@v3
+      with:
+        name: code-coverage-report
+        path: build/coverage/
 
     - name: Test
       working-directory: ${{github.workspace}}/build
       run: ctest --output-on-failure -C ${{matrix.build_type}}
 
-    - name: Test with valgrind
+    - if: ${{matrix.os == 'ubuntu-latest'}}
+      name: (Linux Only) Test with valgrind
       working-directory: ${{github.workspace}}/build
       run: valgrind --child-silent-after-fork=yes --error-exitcode=42 --leak-check=full ./minijson_reader_tests
