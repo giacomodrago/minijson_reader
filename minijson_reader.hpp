@@ -305,7 +305,6 @@ public:
         EXPECTED_UTF16_LOW_SURROGATE,
         INVALID_ESCAPE_SEQUENCE,
         INVALID_UTF16_CHARACTER,
-        EXPECTED_CLOSING_QUOTE,
         INVALID_VALUE,
         UNTERMINATED_VALUE,
         EXPECTED_OPENING_BRACKET,
@@ -365,8 +364,6 @@ public:
             return "Invalid escape sequence";
         case INVALID_UTF16_CHARACTER:
             return "Invalid UTF-16 character";
-        case EXPECTED_CLOSING_QUOTE:
-            return "Expected closing quote";
         case INVALID_VALUE:
             return "Invalid value";
         case UNTERMINATED_VALUE:
@@ -408,8 +405,6 @@ inline std::ostream& operator<<(
             return out << "INVALID_ESCAPE_SEQUENCE";
         case parse_error::INVALID_UTF16_CHARACTER:
             return out << "INVALID_UTF16_CHARACTER";
-        case parse_error::EXPECTED_CLOSING_QUOTE:
-            return out << "EXPECTED_CLOSING_QUOTE";
         case parse_error::INVALID_VALUE:
             return out << "INVALID_VALUE";
         case parse_error::UNTERMINATED_VALUE:
@@ -485,6 +480,29 @@ inline bool is_digit(const char c)
     }
 
     return false;
+}
+
+// There is an std::isxdigit() but it's weird (takes an int among other things)
+inline bool is_hex_digit(const char c)
+{
+    switch (c)
+    {
+    case 'a':
+    case 'A':
+    case 'b':
+    case 'B':
+    case 'c':
+    case 'C':
+    case 'd':
+    case 'D':
+    case 'e':
+    case 'E':
+    case 'f':
+    case 'F':
+        return true;
+    default:
+        return is_digit(c);
+    }
 }
 
 // This exception is thrown internally by the functions dealing with UTF-16
@@ -698,7 +716,8 @@ std::string_view parse_string(Context& context)
             else if (high_surrogate != 0)
             {
                 throw parse_error(
-                    context, parse_error::EXPECTED_UTF16_LOW_SURROGATE);
+                    context,
+                    parse_error::EXPECTED_UTF16_LOW_SURROGATE);
             }
             else if (c == '"')
             {
@@ -744,11 +763,19 @@ std::string_view parse_string(Context& context)
                 break;
             default:
                 throw parse_error(
-                    context, parse_error::INVALID_ESCAPE_SEQUENCE);
+                    context,
+                    parse_error::INVALID_ESCAPE_SEQUENCE);
             }
             break;
 
         case UTF16_SEQUENCE:
+            if (!is_hex_digit(c))
+            {
+                throw parse_error(
+                    context,
+                    parse_error::INVALID_ESCAPE_SEQUENCE);
+            }
+
             utf16_seq[utf16_seq_offset++] = c;
 
             if (utf16_seq_offset == utf16_seq.size())
@@ -761,7 +788,8 @@ std::string_view parse_string(Context& context)
                     if (code_unit == 0 && high_surrogate == 0)
                     {
                         throw parse_error(
-                            context, parse_error::NULL_UTF16_CHARACTER);
+                            context,
+                            parse_error::NULL_UTF16_CHARACTER);
                     }
 
                     if (high_surrogate != 0)
@@ -787,7 +815,8 @@ std::string_view parse_string(Context& context)
                 catch (const encoding_error&)
                 {
                     throw parse_error(
-                        context, parse_error::INVALID_UTF16_CHARACTER);
+                        context,
+                        parse_error::INVALID_UTF16_CHARACTER);
                 }
 
                 utf16_seq_offset = 0;
@@ -805,7 +834,7 @@ std::string_view parse_string(Context& context)
 
     if (state != CLOSED)
     {
-        throw parse_error(context, parse_error::EXPECTED_CLOSING_QUOTE);
+        throw parse_error(context, parse_error::UNTERMINATED_VALUE);
     }
 
     return literal_io.finalize();
