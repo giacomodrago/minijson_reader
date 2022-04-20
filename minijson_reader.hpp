@@ -58,6 +58,10 @@ namespace detail
 class context_base
 {
 public:
+    context_base(const context_base&) = delete;
+    context_base(context_base&&) = delete;
+    context_base& operator=(const context_base&) = delete;
+    context_base& operator=(context_base&&) = delete;
 
     enum context_nested_status
     {
@@ -65,19 +69,6 @@ public:
         NESTED_STATUS_OBJECT,
         NESTED_STATUS_ARRAY
     };
-
-private:
-
-    context_nested_status m_nested_status = NESTED_STATUS_NONE;
-    std::size_t m_nesting_level = 0;
-
-public:
-
-    explicit context_base() noexcept = default;
-    context_base(const context_base&) = delete;
-    context_base(context_base&&) = delete;
-    context_base& operator=(const context_base&) = delete;
-    context_base& operator=(context_base&&) = delete;
 
     context_nested_status nested_status() const noexcept
     {
@@ -107,32 +98,19 @@ public:
     {
         return m_nesting_level;
     }
+
+protected:
+    explicit context_base() noexcept = default;
+
+private:
+    context_nested_status m_nested_status = NESTED_STATUS_NONE;
+    std::size_t m_nesting_level = 0;
 }; // class context_base
 
 // Base for context classes backed by a buffer
 class buffer_context_base : public context_base
 {
-protected:
-
-    const char* const m_read_buffer;
-    char* const m_write_buffer;
-    std::size_t m_length;
-    std::size_t m_read_offset = 0;
-    std::size_t m_write_offset = 0;
-    const char* m_current_literal = m_write_buffer;
-
-    explicit buffer_context_base(
-        const char* const read_buffer,
-        char* const write_buffer,
-        const std::size_t length) noexcept
-    : m_read_buffer(read_buffer)
-    , m_write_buffer(write_buffer)
-    , m_length(length)
-    {
-    }
-
 public:
-
     char read() noexcept
     {
         if (m_read_offset >= m_length)
@@ -179,6 +157,30 @@ public:
     {
         return m_write_buffer + m_write_offset - m_current_literal;
     }
+
+protected:
+    explicit buffer_context_base(
+        const char* const read_buffer,
+        char* const write_buffer,
+        const std::size_t length) noexcept
+    : m_read_buffer(read_buffer)
+    , m_write_buffer(write_buffer)
+    , m_length(length)
+    {
+    }
+
+    char* write_buffer() noexcept
+    {
+        return m_write_buffer;
+    }
+
+private:
+    const char* const m_read_buffer;
+    char* const m_write_buffer;
+    std::size_t m_length;
+    std::size_t m_read_offset = 0;
+    std::size_t m_write_offset = 0;
+    const char* m_current_literal = m_write_buffer;
 }; // class buffer_context_base
 
 // Utility class used throughout the library to read JSON literals (strings,
@@ -187,12 +189,7 @@ public:
 template<typename Context>
 class literal_io final
 {
-private:
-
-    Context& m_context;
-
 public:
-
     explicit literal_io(Context& context) noexcept
     : m_context(context)
     {
@@ -225,6 +222,9 @@ public:
 
         return {m_context.current_literal(), length};
     }
+
+private:
+    Context& m_context;
 }; // class literal_io
 
 } // namespace detail
@@ -232,7 +232,6 @@ public:
 class buffer_context final : public detail::buffer_context_base
 {
 public:
-
     explicit buffer_context(
         char* const buffer,
         const std::size_t length) noexcept
@@ -244,7 +243,6 @@ public:
 class const_buffer_context final : public detail::buffer_context_base
 {
 public:
-
     explicit const_buffer_context(
         const char* const buffer,
         const std::size_t length)
@@ -255,20 +253,13 @@ public:
 
     ~const_buffer_context() noexcept
     {
-        delete[] m_write_buffer;
+        delete[] write_buffer();
     }
 }; // class const_buffer_context
 
 class istream_context final : public detail::context_base
 {
-private:
-
-    std::istream& m_stream;
-    std::size_t m_read_offset = 0;
-    std::list<std::vector<char>> m_literals;
-
 public:
-
     explicit istream_context(std::istream& stream)
     : m_stream(stream)
     {
@@ -319,12 +310,16 @@ public:
     {
         return m_literals.back().size();
     }
+
+private:
+    std::istream& m_stream;
+    std::size_t m_read_offset = 0;
+    std::list<std::vector<char>> m_literals;
 }; // class istream_context
 
-class parse_error : public std::exception
+class parse_error final : public std::exception
 {
 public:
-
     enum error_reason
     {
         UNKNOWN,
@@ -342,21 +337,6 @@ public:
         NULL_UTF16_CHARACTER,
         EXPECTED_VALUE,
     };
-
-private:
-
-    std::size_t m_offset;
-    error_reason m_reason;
-
-    template<typename Context>
-    static std::size_t get_offset(const Context& context) noexcept
-    {
-        const std::size_t read_offset = context.read_offset();
-
-        return (read_offset != 0) ? (read_offset - 1) : 0;
-    }
-
-public:
 
     template<typename Context>
     explicit parse_error(
@@ -414,6 +394,18 @@ public:
 
         return ""; // to suppress compiler warnings -- LCOV_EXCL_LINE
     }
+
+private:
+    template<typename Context>
+    static std::size_t get_offset(const Context& context) noexcept
+    {
+        const std::size_t read_offset = context.read_offset();
+
+        return (read_offset != 0) ? (read_offset - 1) : 0;
+    }
+
+    std::size_t m_offset;
+    error_reason m_reason;
 }; // class parse_error
 
 // LCOV_EXCL_START
@@ -887,24 +879,15 @@ enum value_type
     Null
 };
 
-class bad_value_cast : public std::invalid_argument
+class bad_value_cast final : public std::invalid_argument
 {
 public:
-
     using std::invalid_argument::invalid_argument;
 };
 
 class value final
 {
-    template<typename T> friend struct detail::as;
-
-private:
-
-    value_type m_type = Null;
-    std::string_view m_raw_value = "null";
-
 public:
-
     explicit value() noexcept = default;
 
     explicit value(
@@ -930,6 +913,12 @@ public:
     {
         return detail::as<T>()(*this);
     }
+
+private:
+    value_type m_type = Null;
+    std::string_view m_raw_value = "null";
+
+    template<typename T> friend struct detail::as;
 }; // class value
 
 namespace detail
@@ -1540,18 +1529,9 @@ struct dispatch_rule_any_tag
 
 } // namespace detail
 
-class dispatch
+class dispatch final
 {
-    friend class detail::dispatch_rule;
-    friend class detail::dispatch_rule_any;
-
-private:
-
-    std::string_view m_field_name;
-    bool m_handled = false;
-
 public:
-
     explicit dispatch(const std::string_view field_name) noexcept
     : m_field_name(field_name)
     {
@@ -1566,20 +1546,21 @@ public:
 
     detail::dispatch_rule_any
     operator<<(detail::dispatch_rule_any_tag) noexcept;
+
+private:
+    std::string_view m_field_name;
+    bool m_handled = false;
+
+    friend class detail::dispatch_rule;
+    friend class detail::dispatch_rule_any;
 }; // class dispatch
 
 namespace detail
 {
 
-class dispatch_rule
+class dispatch_rule final
 {
-private:
-
-    dispatch& m_dispatch;
-    std::string_view m_field_name;
-
 public:
-
     explicit dispatch_rule(
         dispatch& dispatch,
         const std::string_view field_name) noexcept
@@ -1604,16 +1585,15 @@ public:
 
         return m_dispatch;
     }
+
+private:
+    dispatch& m_dispatch;
+    std::string_view m_field_name;
 }; // class dispatch_rule
 
-class dispatch_rule_any
+class dispatch_rule_any final
 {
-private:
-
-    dispatch& m_dispatch;
-
 public:
-
     explicit dispatch_rule_any(dispatch& dispatch) noexcept
     : m_dispatch(dispatch)
     {
@@ -1633,17 +1613,15 @@ public:
             m_dispatch.m_handled = true;
         }
     }
+
+private:
+    dispatch& m_dispatch;
 }; // class dispatch_rule_any
 
 template<typename Context>
-class ignore
+class ignore final
 {
-private:
-
-    Context& m_context;
-
 public:
-
     explicit ignore(Context& context) noexcept
     : m_context(context)
     {
@@ -1678,6 +1656,9 @@ public:
             break;
         }
     }
+
+private:
+    Context& m_context;
 }; // class ignore
 
 } // namespace detail
