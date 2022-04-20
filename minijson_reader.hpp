@@ -826,9 +826,9 @@ std::string_view parse_string(Context& context)
             break;
 
         case CLOSED: // to silence compiler warnings
-            throw std::runtime_error(
+            throw std::runtime_error( // LCOV_EXCL_LINE
                 "[minijson_reader] this line should never be reached, "
-                "please file a bug report"); // LCOV_EXCL_LINE
+                "please file a bug report");
         }
     }
 
@@ -1374,16 +1374,16 @@ void parse_object(Context& context, Handler&& handler)
             break;
 
         case END:
-            throw std::runtime_error(
+            throw std::runtime_error( // LCOV_EXCL_LINE
                 "[minijson_reader] this line should never be reached, "
-                "please file a bug report"); // LCOV_EXCL_LINE
+                "please file a bug report");
         }
 
         if (c == 0)
         {
-            throw std::runtime_error(
+            throw std::runtime_error( // LCOV_EXCL_LINE
                 "[minijson_reader] this line should never be reached, "
-                "please file a bug report"); // LCOV_EXCL_LINE
+                "please file a bug report");
         }
     }
 
@@ -1475,16 +1475,16 @@ void parse_array(Context& context, Handler&& handler)
             break;
 
         case END:
-            throw std::runtime_error(
+            throw std::runtime_error( // LCOV_EXCL_LINE
                 "[minijson_reader] this line should never be reached, "
-                "please file a bug report"); // LCOV_EXCL_LINE
+                "please file a bug report");
         }
 
         if (c == 0)
         {
-            throw std::runtime_error(
+            throw std::runtime_error( // LCOV_EXCL_LINE
                 "[minijson_reader] this line should never be reached, "
-                "please file a bug report"); // LCOV_EXCL_LINE
+                "please file a bug report");
         }
     }
 
