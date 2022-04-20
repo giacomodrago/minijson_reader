@@ -423,34 +423,34 @@ inline std::ostream& operator<<(
 {
     switch (reason)
     {
-        case parse_error::UNKNOWN:
-            return out << "UNKNOWN";
-        case parse_error::EXPECTED_OPENING_QUOTE:
-            return out << "EXPECTED_OPENING_QUOTE";
-        case parse_error::EXPECTED_UTF16_LOW_SURROGATE:
-            return out << "EXPECTED_UTF16_LOW_SURROGATE";
-        case parse_error::INVALID_ESCAPE_SEQUENCE:
-            return out << "INVALID_ESCAPE_SEQUENCE";
-        case parse_error::INVALID_UTF16_CHARACTER:
-            return out << "INVALID_UTF16_CHARACTER";
-        case parse_error::INVALID_VALUE:
-            return out << "INVALID_VALUE";
-        case parse_error::UNTERMINATED_VALUE:
-            return out << "UNTERMINATED_VALUE";
-        case parse_error::EXPECTED_OPENING_BRACKET:
-            return out << "EXPECTED_OPENING_BRACKET";
-        case parse_error::EXPECTED_COLON:
-            return out << "EXPECTED_COLON";
-        case parse_error::EXPECTED_COMMA_OR_CLOSING_BRACKET:
-            return out << "EXPECTED_COMMA_OR_CLOSING_BRACKET";
-        case parse_error::NESTED_OBJECT_OR_ARRAY_NOT_PARSED:
-            return out << "NESTED_OBJECT_OR_ARRAY_NOT_PARSED";
-        case parse_error::EXCEEDED_NESTING_LIMIT:
-            return out << "EXCEEDED_NESTING_LIMIT";
-        case parse_error::NULL_UTF16_CHARACTER:
-            return out << "NULL_UTF16_CHARACTER";
-        case parse_error::EXPECTED_VALUE:
-            return out << "EXPECTED_VALUE";
+    case parse_error::UNKNOWN:
+        return out << "UNKNOWN";
+    case parse_error::EXPECTED_OPENING_QUOTE:
+        return out << "EXPECTED_OPENING_QUOTE";
+    case parse_error::EXPECTED_UTF16_LOW_SURROGATE:
+        return out << "EXPECTED_UTF16_LOW_SURROGATE";
+    case parse_error::INVALID_ESCAPE_SEQUENCE:
+        return out << "INVALID_ESCAPE_SEQUENCE";
+    case parse_error::INVALID_UTF16_CHARACTER:
+        return out << "INVALID_UTF16_CHARACTER";
+    case parse_error::INVALID_VALUE:
+        return out << "INVALID_VALUE";
+    case parse_error::UNTERMINATED_VALUE:
+        return out << "UNTERMINATED_VALUE";
+    case parse_error::EXPECTED_OPENING_BRACKET:
+        return out << "EXPECTED_OPENING_BRACKET";
+    case parse_error::EXPECTED_COLON:
+        return out << "EXPECTED_COLON";
+    case parse_error::EXPECTED_COMMA_OR_CLOSING_BRACKET:
+        return out << "EXPECTED_COMMA_OR_CLOSING_BRACKET";
+    case parse_error::NESTED_OBJECT_OR_ARRAY_NOT_PARSED:
+        return out << "NESTED_OBJECT_OR_ARRAY_NOT_PARSED";
+    case parse_error::EXCEEDED_NESTING_LIMIT:
+        return out << "EXCEEDED_NESTING_LIMIT";
+    case parse_error::NULL_UTF16_CHARACTER:
+        return out << "NULL_UTF16_CHARACTER";
+    case parse_error::EXPECTED_VALUE:
+        return out << "EXPECTED_VALUE";
     }
 
     return out << "UNKNOWN";
@@ -470,9 +470,9 @@ inline bool is_whitespace(const char c)
     case '\r':
     case '\t':
         return true;
+    default:
+        return false;
     }
-
-    return false;
 }
 
 // Tells whether a character can be used to terminate a value not enclosed in
@@ -506,9 +506,9 @@ inline bool is_digit(const char c)
     case '8':
     case '9':
         return true;
+    default:
+        return false;
     }
-
-    return false;
 }
 
 // There is an std::isxdigit() but it's weird (takes an int among other things)
@@ -1252,6 +1252,7 @@ void parse_init(
     case Context::NESTED_STATUS_NONE:
         must_read = true;
         break;
+
     case Context::NESTED_STATUS_OBJECT:
         c = '{';
         // Since we are parsing a nested object, we already read an opening
@@ -1259,6 +1260,7 @@ void parse_init(
         // input.
         must_read = false;
         break;
+
     case Context::NESTED_STATUS_ARRAY:
         // Since we are parsing a nested array, we already read an opening
         // bracket. The main loop does not need to read a character from the
