@@ -798,6 +798,120 @@ TEST(minijson_reader_detail, parse_unquoted_value_double)
     ASSERT_DOUBLE_EQ(42e+76, value.as<std::optional<double>>().value_or(-1));
 }
 
+template<std::size_t N>
+void parse_number_exhaustive_helper(
+    const char (&buffer)[N],
+    const bool valid_double = true)
+{
+    SCOPED_TRACE(buffer);
+    minijson::const_buffer_context context(buffer, N);
+    const auto [value, termination_char] =
+        minijson::detail::parse_unquoted_value(context, context.read());
+    ASSERT_EQ(value.raw(), std::string_view(buffer, N - 2));
+    if (valid_double)
+    {
+        ASSERT_NO_THROW(value.as<double>());
+    }
+    ASSERT_EQ(termination_char, buffer[N - 2]);
+}
+
+TEST(minijson_reader_detail, parse_number_exhaustive)
+{
+    parse_number_exhaustive_helper("0,");
+    parse_number_exhaustive_helper("-0,");
+    parse_number_exhaustive_helper("1}");
+    parse_number_exhaustive_helper("-1}");
+    parse_number_exhaustive_helper("42]");
+    parse_number_exhaustive_helper("-42 ");
+    parse_number_exhaustive_helper("-1234567890 ");
+    parse_number_exhaustive_helper("0.0,");
+    parse_number_exhaustive_helper("-0.0,");
+    parse_number_exhaustive_helper("4.2,");
+    parse_number_exhaustive_helper("-4.2}");
+    parse_number_exhaustive_helper("42.0]");
+    parse_number_exhaustive_helper("-423.423 ");
+    parse_number_exhaustive_helper("0.1,");
+    parse_number_exhaustive_helper("-0.123}");
+    parse_number_exhaustive_helper("0.123e75]");
+    parse_number_exhaustive_helper("0.123E75]");
+    parse_number_exhaustive_helper("-0e5}");
+    parse_number_exhaustive_helper("0e+5}");
+    parse_number_exhaustive_helper("0e-5}");
+    parse_number_exhaustive_helper("12e5}");
+    parse_number_exhaustive_helper("-1.123E+7 ");
+    parse_number_exhaustive_helper("-1.123e+0 ");
+    parse_number_exhaustive_helper("-1.123E-0 ");
+    parse_number_exhaustive_helper("12.123e-7,");
+    parse_number_exhaustive_helper("0.123e1234567890}", false);
+    parse_number_exhaustive_helper("-1.123E+756]", false);
+    parse_number_exhaustive_helper("1234567890.1234567890e-75 ");
+    parse_number_exhaustive_helper("1234567890.1234567890e-756 ", false);
+}
+
+template<std::size_t N>
+void parse_number_exhaustive_fail_helper(const char (&buffer)[N])
+{
+    SCOPED_TRACE(buffer);
+    minijson::const_buffer_context context(buffer, N);
+
+    try
+    {
+        minijson::detail::parse_unquoted_value(context, context.read());
+        FAIL() << "Exception not thrown";
+    }
+    catch (const minijson::parse_error& ex)
+    {
+        ASSERT_EQ(minijson::parse_error::INVALID_VALUE, ex.reason());
+    }
+}
+
+TEST(minijson_reader_detail, parse_number_exhaustive_fail)
+{
+    parse_number_exhaustive_fail_helper("x,");
+    parse_number_exhaustive_fail_helper(".5,");
+    parse_number_exhaustive_fail_helper("e7,");
+    parse_number_exhaustive_fail_helper("01,");
+    parse_number_exhaustive_fail_helper("0x,");
+    parse_number_exhaustive_fail_helper("0.,");
+    parse_number_exhaustive_fail_helper("0e,");
+    parse_number_exhaustive_fail_helper("0e-,");
+    parse_number_exhaustive_fail_helper("0e+,");
+    parse_number_exhaustive_fail_helper("-01,");
+    parse_number_exhaustive_fail_helper("-0x,");
+    parse_number_exhaustive_fail_helper("-0.,");
+    parse_number_exhaustive_fail_helper("-0e,");
+    parse_number_exhaustive_fail_helper("-0e-,");
+    parse_number_exhaustive_fail_helper("-0e+,");
+    parse_number_exhaustive_fail_helper("+1,");
+    parse_number_exhaustive_fail_helper("1x,");
+    parse_number_exhaustive_fail_helper("1.,");
+    parse_number_exhaustive_fail_helper("1e,");
+    parse_number_exhaustive_fail_helper("1e-,");
+    parse_number_exhaustive_fail_helper("1e+,");
+    parse_number_exhaustive_fail_helper("1.e7,");
+    parse_number_exhaustive_fail_helper("1.e-5,");
+    parse_number_exhaustive_fail_helper("1.e+5,");
+    parse_number_exhaustive_fail_helper("0.0E,");
+    parse_number_exhaustive_fail_helper("0.0e-,");
+    parse_number_exhaustive_fail_helper("0.0E+,");
+    parse_number_exhaustive_fail_helper("0.0+,");
+    parse_number_exhaustive_fail_helper("1.0E,");
+    parse_number_exhaustive_fail_helper("1.0e-,");
+    parse_number_exhaustive_fail_helper("1.0E+,");
+    parse_number_exhaustive_fail_helper("1.0+,");
+    parse_number_exhaustive_fail_helper("-1.0E,");
+    parse_number_exhaustive_fail_helper("-1.0e-,");
+    parse_number_exhaustive_fail_helper("-1.0E+,");
+    parse_number_exhaustive_fail_helper("-1.0+,");
+    parse_number_exhaustive_fail_helper("1.+,");
+    parse_number_exhaustive_fail_helper("1+,");
+    parse_number_exhaustive_fail_helper("1..0e+5,");
+    parse_number_exhaustive_fail_helper("1.0ee+5,");
+    parse_number_exhaustive_fail_helper("1.0e++5,");
+    parse_number_exhaustive_fail_helper("1.0.5,");
+    parse_number_exhaustive_fail_helper("1234567890.1234567890e-7.5 ");
+}
+
 TEST(minijson_reader_detail, parse_unquoted_value_invalid)
 {
     char buffer[] = "  asd,";
