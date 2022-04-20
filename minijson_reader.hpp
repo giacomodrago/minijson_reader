@@ -130,6 +130,7 @@ public:
 
     void write(const char c) noexcept
     {
+        // LCOV_EXCL_START
         if (m_write_offset >= m_read_offset)
         {
             // This is VERY bad.
@@ -137,8 +138,9 @@ public:
             // serious bug, or the memory is hopelessly corrupted. Better to
             // fail fast and get a crash dump. If this happens and you can
             // prove it's not the client's fault, please do file a bug report.
-            std::abort(); // LCOV_EXCL_LINE
+            std::abort();
         }
+        // LCOV_EXCL_STOP
 
         m_write_buffer[m_write_offset++] = c;
     }
@@ -389,6 +391,7 @@ public:
     }
 }; // class parse_error
 
+// LCOV_EXCL_START
 inline std::ostream& operator<<(
     std::ostream& out,
     const parse_error::error_reason reason)
@@ -427,6 +430,7 @@ inline std::ostream& operator<<(
 
     return out << "UNKNOWN";
 }
+// LCOV_EXCL_STOP
 
 namespace detail
 {
@@ -825,10 +829,12 @@ std::string_view parse_string(Context& context)
             }
             break;
 
-        case CLOSED: // to silence compiler warnings
-            throw std::runtime_error( // LCOV_EXCL_LINE
+        // LCOV_EXCL_START
+        case CLOSED:
+            throw std::runtime_error(
                 "[minijson_reader] this line should never be reached, "
                 "please file a bug report");
+        // LCOV_EXCL_STOP
         }
     }
 
@@ -1373,10 +1379,12 @@ void parse_object(Context& context, Handler&& handler)
             }
             break;
 
+        // LCOV_EXCL_START
         case END:
-            throw std::runtime_error( // LCOV_EXCL_LINE
+            throw std::runtime_error(
                 "[minijson_reader] this line should never be reached, "
                 "please file a bug report");
+        // LCOV_EXCL_STOP
         }
 
         if (c == 0)
@@ -1474,10 +1482,12 @@ void parse_array(Context& context, Handler&& handler)
             }
             break;
 
+        // LCOV_EXCL_START
         case END:
-            throw std::runtime_error( // LCOV_EXCL_LINE
+            throw std::runtime_error(
                 "[minijson_reader] this line should never be reached, "
                 "please file a bug report");
+        // LCOV_EXCL_STOP
         }
 
         if (c == 0)

@@ -1488,6 +1488,7 @@ TEST(minijson_reader, parse_object_truncated)
                 break;
             case 1:
                 ASSERT_EQ(parse_error::EXPECTED_OPENING_QUOTE, e.reason());
+                ASSERT_STREQ("Expected opening quote", e.what());
                 break;
             case 2:
                 ASSERT_EQ(parse_error::UNTERMINATED_VALUE, e.reason());
@@ -1759,7 +1760,8 @@ TEST(minijson_reader, parse_object_invalid)
 
     parse_object_invalid_helper(
         "{\"x\":}",
-        minijson::parse_error::EXPECTED_VALUE);
+        minijson::parse_error::EXPECTED_VALUE,
+        "Expected a value");
 
     parse_object_invalid_helper(
         "{\"x\": }",
@@ -1843,6 +1845,10 @@ TEST(minijson_reader, parse_object_invalid)
 
     parse_object_invalid_helper(
         "{\"x\":nuxl}",
+        minijson::parse_error::INVALID_VALUE);
+
+    parse_object_invalid_helper(
+        "{\"x\":nulll}",
         minijson::parse_error::INVALID_VALUE);
 
     parse_object_invalid_helper(

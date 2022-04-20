@@ -52,6 +52,11 @@ add_test(NAME all
 if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_COMPILER_IS_GNUCXX)
     include(cmake_modules/CodeCoverage.cmake)
     append_coverage_compiler_flags()
+    set(GCOVR_ADDITIONAL_ARGS
+        --fail-under-line 100
+        --exclude-unreachable-branches
+        --exclude-throw-branches
+        --print-summary)
 
     setup_target_for_coverage_gcovr_html(
         NAME coverage
