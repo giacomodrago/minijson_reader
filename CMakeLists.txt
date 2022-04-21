@@ -63,16 +63,29 @@ add_executable(minijson_reader_tests
     minijson_reader_tests.cpp
 )
 
+add_executable(minijson_reader_as_specializations_tests
+    minijson_reader_as_specializations_tests.cpp
+)
+
 target_link_libraries(minijson_reader_tests
+    ${GTEST_BOTH_LIBRARIES})
+
+target_link_libraries(minijson_reader_as_specializations_tests
     ${GTEST_BOTH_LIBRARIES})
 
 if(UNIX)
     target_link_libraries(minijson_reader_tests
         pthread)
+
+    target_link_libraries(minijson_reader_as_specializations_tests
+        pthread)
 endif()
 
-add_test(NAME all
+add_test(NAME tests
     COMMAND minijson_reader_tests)
+
+add_test(NAME as_specializations_tests
+    COMMAND minijson_reader_as_specializations_tests)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_COMPILER_IS_GNUCXX)
     include(cmake_modules/CodeCoverage.cmake)
