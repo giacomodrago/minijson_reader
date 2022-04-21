@@ -102,63 +102,7 @@ Field and element values are accessible through instances of the `minijson::valu
   - **`std::optional<T>`**, where `T` is any of the above. The behavior is the same as for `T`, except that an empty optional is returned *if and only if* `type()` is `Null`. Exceptions caused by other failure modes are propagated.
 - **`std::string_view raw()`**. The raw contents of the value. This method is useful for debugging or wrapping this library, but in general `as()` should be preferred. If `type()` is `String`, this method behaves just like `as<std::string_view>()`; if `type()` is `Boolean`, this method returns either `true` or `false`; if `type()` is `Null`, this method returns `null`; if `type()` is `Number`, this method returns the number exactly as it appears on the JSON message; if `type()` is `Object` or `Array`, this method returns an empty `std::string_view`. The lifetime of the returned `std::string_view` is that of the parsing [context](#contexts), except for [`buffer_context`](#buffer_context), in which case the `std::string_view` will stay valid until the underlying input buffer is destroyed.
 
-You can extend the set of types `value::as()` can handle, or even override its behavior for some of the types supported by default, by specializing the `minijson::as` struct. For example:
-
-```cpp
-enum class OrderType
-{
-    BUY,
-    SELL,
-};
-
-namespace minijson
-{
-
-// Add support for your enum
-template<>
-struct as<OrderType>
-{
-    OrderType operator()(const value v) const
-    {
-        if (v.type() != String)
-        {
-            throw std::runtime_error(
-                "could not convert JSON value to OrderType");
-        }
-
-        if (boost::iequals(v.raw(), "buy"))
-        {
-            return OrderType::BUY;
-        }
-        if (boost::iequals(v.raw(), "sell"))
-        {
-            return OrderType::SELL;
-        }
-        throw std::runtime_error("could not convert JSON value to OrderType");
-    }
-};
-
-// *Override* the default behavior for floating point types
-template<typename T>
-struct as<T, std::enable_if_t<std::is_floating_point_v<T>>>
-{
-    T operator()(const value v) const
-    {
-        if (v.type() != Number)
-        {
-            throw std::runtime_error(
-                "could not convert JSON value to a floating point number");
-        }
-
-        return boost::lexical_cast<double>(v.raw());
-
-        // N.B.: you can always fall back to the default behavior like so:
-        // return as_default<T>(v);
-    }
-};
-
-} // namespace minijson
-```
+The behavior of `value::as()` [can be customized](#customizing-valueas).
 
 ### Parsing nested objects or arrays
 
@@ -289,6 +233,67 @@ parse_object(ctx, [&](std::string_view k, value v)
     }
     <<any>> [&]{ignore(ctx);};
 });
+```
+
+### Customizing `value::as()`
+
+You can extend the set of types `value::as()` can handle, or even override its behavior for some of the types supported by default, by specializing the `minijson::as` struct. For example:
+
+```cpp
+enum class OrderType
+{
+    BUY,
+    SELL,
+};
+
+namespace minijson
+{
+
+// Add support for your enum
+template<>
+struct as<OrderType>
+{
+    OrderType operator()(const value v) const
+    {
+        if (v.type() != String)
+        {
+            throw std::runtime_error(
+                "could not convert JSON value to OrderType");
+        }
+
+        if (boost::iequals(v.raw(), "buy"))
+        {
+            return OrderType::BUY;
+        }
+        if (boost::iequals(v.raw(), "sell"))
+        {
+            return OrderType::SELL;
+        }
+        throw std::runtime_error("could not convert JSON value to OrderType");
+    }
+};
+
+// *Override* the default behavior for floating point types
+template<typename T>
+struct as<T, std::enable_if_t<std::is_floating_point_v<T>>>
+{
+    T operator()(const value v) const
+    {
+        if (v.type() != Number)
+        {
+            throw std::runtime_error(
+                "could not convert JSON value to a floating point number");
+        }
+
+        // Unclear why anyone would want to do this (it's just an example...)
+        return boost::lexical_cast<double>(v.raw());
+
+        // Note: you can always fall back to the default behavior like so:
+        // return as_default<T>(v);
+    }
+};
+
+} // namespace minijson
 ```
 
 ## Errors
