@@ -100,5 +100,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_COMPILER_IS_GNUCXX)
         NAME coverage
         DEPENDENCIES minijson_reader_tests
         EXECUTABLE minijson_reader_tests
-        EXCLUDE "minijson_reader_tests.cpp")
+        EXCLUDE
+            "minijson_reader_tests.cpp"
+            "minijson_reader_as_specializations_tests.cpp")
 endif()
