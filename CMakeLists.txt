@@ -55,37 +55,22 @@ elseif(CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 find_package(GTest REQUIRED)
-include_directories(${GTEST_INCLUDE_DIRS})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${GTEST_INCLUDE_DIRS})
 
 enable_testing()
 
-add_executable(minijson_reader_tests
-    minijson_reader_tests.cpp
-)
+add_executable(test_main test/main.cpp)
+target_link_libraries(test_main ${GTEST_BOTH_LIBRARIES})
+add_test(NAME test_main COMMAND test_main)
 
-add_executable(minijson_reader_as_specializations_tests
-    minijson_reader_as_specializations_tests.cpp
-)
-
-target_link_libraries(minijson_reader_tests
-    ${GTEST_BOTH_LIBRARIES})
-
-target_link_libraries(minijson_reader_as_specializations_tests
-    ${GTEST_BOTH_LIBRARIES})
+add_executable(test_value_as test/value_as.cpp)
+target_link_libraries(test_value_as ${GTEST_BOTH_LIBRARIES})
+add_test(NAME test_value_as COMMAND test_value_as)
 
 if(UNIX)
-    target_link_libraries(minijson_reader_tests
-        pthread)
-
-    target_link_libraries(minijson_reader_as_specializations_tests
-        pthread)
+    target_link_libraries(test_main pthread)
+    target_link_libraries(test_value_as pthread)
 endif()
-
-add_test(NAME tests
-    COMMAND minijson_reader_tests)
-
-add_test(NAME as_specializations_tests
-    COMMAND minijson_reader_as_specializations_tests)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_COMPILER_IS_GNUCXX)
     include(cmake_modules/CodeCoverage.cmake)
@@ -94,13 +79,13 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_COMPILER_IS_GNUCXX)
         --fail-under-line 100
         --exclude-unreachable-branches
         --exclude-throw-branches
-        --print-summary)
+        --print-summary
+    )
 
     setup_target_for_coverage_gcovr_html(
         NAME coverage
-        DEPENDENCIES minijson_reader_tests
-        EXECUTABLE minijson_reader_tests
-        EXCLUDE
-            "minijson_reader_tests.cpp"
-            "minijson_reader_as_specializations_tests.cpp")
+        DEPENDENCIES test_main
+        EXECUTABLE test_main
+        EXCLUDE "test/main.cpp" "test/value_as.cpp"
+    )
 endif()
