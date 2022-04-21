@@ -28,53 +28,53 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - if: ${{matrix.os == 'ubuntu-latest'}}
+    - if: matrix.os == 'ubuntu-latest'
       # We always install gcc 11 on Linux because clang relies on gcc's
       # implementation of the standard library, and we require a modern one
       name: (Linux Only) Install gcc 11 and gcovr
       run: sudo apt-get install g++-11 gcovr
 
-    - if: ${{matrix.os == 'ubuntu-latest' && matrix.compiler == 'clang++'}}
+    - if: matrix.os == 'ubuntu-latest' && matrix.compiler == 'clang++'
       name: (Linux Only) Install clang
       uses: egor-tensin/setup-clang@v1
       with:
         version: 13
         platform: x64
 
-    - if: ${{matrix.os == 'ubuntu-latest'}}
+    - if: matrix.os == 'ubuntu-latest'
       name: (Linux) Install GTest
       run: sudo apt-get install -y libgtest-dev
 
-    - if: ${{matrix.os == 'windows-latest'}}
+    - if: matrix.os == 'windows-latest'
       name: (Windows) Install GTest
       # TODO: try to cache this artifact (e.g. using lukka/run-vcpkg)
       run: vcpkg install gtest:x64-windows
 
-    - if: ${{matrix.os == 'ubuntu-latest'}}
+    - if: matrix.os == 'ubuntu-latest'
       name: (Linux Only) Install Valgrind
       run: sudo apt-get install -y valgrind
 
-    - if: ${{matrix.os == 'ubuntu-latest'}}
+    - if: matrix.os == 'ubuntu-latest'
       name: (Linux) Configure CMake
       run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.build_type}}
       env:
         CXX: ${{matrix.compiler}}
 
-    - if: ${{matrix.os == 'windows-latest'}}
+    - if: matrix.os == 'windows-latest'
       name: (Windows) Configure CMake
       run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake
 
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}}
 
-    - if: ${{matrix.os == 'ubuntu-latest' && matrix.compiler == 'g++-11' && matrix.build_type == 'Debug'}}
+    - if: matrix.os == 'ubuntu-latest' && matrix.compiler == 'g++-11' && matrix.build_type == 'Debug'
       name: (Linux/gcc/debug Only) Code coverage report
       working-directory: ${{github.workspace}}/build
       run: cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}} --target coverage
       env:
         GCOV: gcov-11
 
-    - if: ${{always() && matrix.os == 'ubuntu-latest' && matrix.compiler == 'g++-11' && matrix.build_type == 'Debug'}}
+    - if: always() && matrix.os == 'ubuntu-latest' && matrix.compiler == 'g++-11' && matrix.build_type == 'Debug'
       name: (Linux/gcc/debug Only) Archive code coverage results
       uses: actions/upload-artifact@v3
       with:
@@ -85,7 +85,7 @@ jobs:
       working-directory: ${{github.workspace}}/build
       run: ctest --output-on-failure -C ${{matrix.build_type}}
 
-    - if: ${{matrix.os == 'ubuntu-latest'}}
+    - if: matrix.os == 'ubuntu-latest'
       name: (Linux Only) Test with valgrind
       working-directory: ${{github.workspace}}/build
       run: >
