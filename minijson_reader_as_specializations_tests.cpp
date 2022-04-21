@@ -38,7 +38,7 @@ namespace minijson
 {
 
 template<>
-struct as<OrderType>
+struct value_as<OrderType>
 {
     OrderType operator()(const value v) const
     {
@@ -60,7 +60,7 @@ struct as<OrderType>
 };
 
 template<>
-struct as<std::optional<OrderType>>
+struct value_as<std::optional<OrderType>>
 {
     std::optional<OrderType> operator()(const value v) const
     {
@@ -91,7 +91,7 @@ struct as<std::optional<OrderType>>
 };
 
 template<typename T>
-struct as<T, std::enable_if_t<std::is_floating_point_v<T>>>
+struct value_as<T, std::enable_if_t<std::is_floating_point_v<T>>>
 {
     T operator()(const value v) const
     {
@@ -102,7 +102,7 @@ struct as<T, std::enable_if_t<std::is_floating_point_v<T>>>
         {
             return 42;
         }
-        return as_default<T>(v);
+        return value_as_default<T>(v);
     }
 };
 

@@ -237,7 +237,7 @@ parse_object(ctx, [&](std::string_view k, value v)
 
 ### Customizing `value::as()`
 
-You can extend the set of types `value::as()` can handle, or even override its behavior for some of the types supported by default, by specializing the `minijson::as` struct. For example:
+You can extend the set of types `value::as()` can handle, or even override its behavior for some of the types supported by default, by specializing the `minijson::value_as` struct. For example:
 
 ```cpp
 enum class OrderType
@@ -251,7 +251,7 @@ namespace minijson
 
 // Add support for your enum
 template<>
-struct as<OrderType>
+struct value_as<OrderType>
 {
     OrderType operator()(const value v) const
     {
@@ -275,7 +275,7 @@ struct as<OrderType>
 
 // *Override* the default behavior for floating point types
 template<typename T>
-struct as<T, std::enable_if_t<std::is_floating_point_v<T>>>
+struct value_as<T, std::enable_if_t<std::is_floating_point_v<T>>>
 {
     T operator()(const value v) const
     {
@@ -289,7 +289,7 @@ struct as<T, std::enable_if_t<std::is_floating_point_v<T>>>
         return boost::lexical_cast<double>(v.raw());
 
         // Note: you can always fall back to the default behavior like so:
-        // return as_default<T>(v);
+        // return value_as_default<T>(v);
     }
 };
 

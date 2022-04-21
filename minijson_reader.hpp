@@ -892,7 +892,7 @@ public:
 };
 
 template<typename T, typename Enable = void>
-struct as;
+struct value_as;
 
 class value final
 {
@@ -920,7 +920,7 @@ public:
     template<typename T>
     T as() const
     {
-        return minijson::as<T>()(*this);
+        return value_as<T>()(*this);
     }
 
 private:
@@ -928,13 +928,13 @@ private:
     std::string_view m_raw_value = "null";
 }; // class value
 
-// Fallback behavior of value::as<T>() when no user-provided "struct as"
+// Fallback behavior of value::as<T>() when no user-provided value_as
 // specialization for T exists.
 // This function is also meant to be called directly by the user in case they
-// need to fall back to the default behavior inside their "struct as"
+// need to fall back to the default behavior inside their value_as
 // specialization for T, for whatever reason.
 template<typename T>
-T as_default(const value v)
+T value_as_default(const value v)
 {
     if constexpr (detail::is_std_optional<T>())
     {
@@ -1035,11 +1035,11 @@ T as_default(const value v)
 }
 
 template<typename T, typename Enable>
-struct as final
+struct value_as final
 {
     T operator()(const value v) const
     {
-        return as_default<T>(v);
+        return value_as_default<T>(v);
     }
 };
 
