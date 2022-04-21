@@ -1291,8 +1291,10 @@ value parse_value(Context& context, char& c, bool& must_read)
 } // namespace detail
 
 template<typename Context, typename Handler>
-void parse_object(Context& context, Handler&& handler)
+std::size_t parse_object(Context& context, Handler&& handler)
 {
+    const std::size_t read_offset = context.read_offset();
+
     const std::size_t nesting_level = context.nesting_level();
     if (nesting_level > MJR_NESTING_LIMIT)
     {
@@ -1412,11 +1414,15 @@ void parse_object(Context& context, Handler&& handler)
     }
 
     context.end_nested();
+
+    return context.read_offset() - read_offset;
 }
 
 template<typename Context, typename Handler>
-void parse_array(Context& context, Handler&& handler)
+std::size_t parse_array(Context& context, Handler&& handler)
 {
+    const std::size_t read_offset = context.read_offset();
+
     const std::size_t nesting_level = context.nesting_level();
     if (nesting_level > MJR_NESTING_LIMIT)
     {
@@ -1515,6 +1521,8 @@ void parse_array(Context& context, Handler&& handler)
     }
 
     context.end_nested();
+
+    return context.read_offset() - read_offset;
 }
 
 namespace detail

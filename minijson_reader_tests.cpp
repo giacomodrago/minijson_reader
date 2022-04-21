@@ -1239,7 +1239,9 @@ TEST(minijson_reader, parse_object_multiple_fields)
             sizeof(buffer) - 1);
 
         parse_object_multiple_fields_handler handler;
-        minijson::parse_object(const_buffer_context, handler);
+        const std::size_t read_bytes =
+            minijson::parse_object(const_buffer_context, handler);
+        ASSERT_EQ(223, read_bytes);
         ASSERT_TRUE(handler.flags.all());
     }
     {
@@ -1247,7 +1249,9 @@ TEST(minijson_reader, parse_object_multiple_fields)
         minijson::istream_context istream_context(ss);
 
         parse_object_multiple_fields_handler handler;
-        minijson::parse_object(istream_context, handler);
+        const std::size_t read_bytes =
+            minijson::parse_object(istream_context, handler);
+        ASSERT_EQ(223, read_bytes);
         ASSERT_TRUE(handler.flags.all());
     }
     {
@@ -1258,7 +1262,9 @@ TEST(minijson_reader, parse_object_multiple_fields)
             sizeof(buffer) - 1);
 
         parse_object_multiple_fields_handler handler;
-        minijson::parse_object(buffer_context, handler);
+        const std::size_t read_bytes =
+            minijson::parse_object(buffer_context, handler);
+        ASSERT_EQ(223, read_bytes);
         ASSERT_TRUE(handler.flags.all());
     }
 }
@@ -1361,6 +1367,48 @@ TEST(minijson_reader, parse_object_nested)
         parse_object_nested_handler handler(buffer_context);
         minijson::parse_object(buffer_context, handler);
         ASSERT_TRUE(handler.flags.all());
+    }
+}
+
+TEST(minijson_reader, parse_object_bytes_read)
+{
+    char buffer[] =
+        "{\"first\":1,\"nesting\":[]}{\"nesting\":{},\"second\":2}{\"3rd\":3}";
+
+    std::size_t bytes_read = 0;
+    {
+        minijson::buffer_context ctx(buffer, sizeof(buffer));
+        bytes_read = minijson::parse_object(
+            ctx,
+            [&](auto...){minijson::ignore(ctx);});
+        ASSERT_EQ(24, bytes_read);
+    }
+    {
+        minijson::buffer_context ctx(
+            buffer + bytes_read,
+            sizeof(buffer) - bytes_read);
+        bytes_read = minijson::parse_object(
+            ctx,
+            [&](const std::string_view name, const minijson::value value)
+            {
+                if (name == "second")
+                {
+                    ASSERT_EQ(2, value.as<int>());
+                    return;
+                }
+                minijson::ignore(ctx);
+            });
+        ASSERT_EQ(25, bytes_read);
+
+        // Keep on using the same context to parse the third object
+        bytes_read = minijson::parse_object(
+            ctx,
+            [&](const std::string_view name, const minijson::value value)
+            {
+                ASSERT_EQ("3rd", name);
+                ASSERT_EQ(3, value.as<int>());
+            });
+        ASSERT_EQ(9, bytes_read);
     }
 }
 
@@ -1592,6 +1640,46 @@ TEST(minijson_reader, parse_array_nested)
         parse_array_nested_handler handler(buffer_context);
         minijson::parse_array(buffer_context, handler);
         ASSERT_EQ(handler.counter, 2);
+    }
+}
+
+TEST(minijson_reader, parse_array_bytes_read)
+{
+    char buffer[] = "[1,2,3,{}][{},4,5,6][7]";
+
+    std::size_t bytes_read = 0;
+    {
+        minijson::buffer_context ctx(buffer, sizeof(buffer));
+        bytes_read = minijson::parse_array(
+            ctx,
+            [&](auto...){minijson::ignore(ctx);});
+        ASSERT_EQ(10, bytes_read);
+    }
+    {
+        minijson::buffer_context ctx(
+            buffer + bytes_read,
+            sizeof(buffer) - bytes_read);
+        bytes_read = minijson::parse_array(
+            ctx,
+            [&, x = 4](const minijson::value value) mutable
+            {
+                if (value.type() == minijson::Object)
+                {
+                    minijson::ignore(ctx);
+                    return;
+                }
+                ASSERT_EQ(x++, value.as<int>());
+            });
+        ASSERT_EQ(10, bytes_read);
+
+        // Keep on using the same context for the third array
+        bytes_read = minijson::parse_array(
+            ctx,
+            [&](const minijson::value value)
+            {
+                ASSERT_EQ(7, value.as<int>());
+            });
+        ASSERT_EQ(3, bytes_read);
     }
 }
 
