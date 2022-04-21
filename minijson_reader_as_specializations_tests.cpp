@@ -59,15 +59,50 @@ struct as<OrderType>
     }
 };
 
+template<>
+struct as<std::optional<OrderType>>
+{
+    std::optional<OrderType> operator()(const value v) const
+    {
+        if (v.type() == Null)
+        {
+            return std::nullopt;
+        }
+
+        // In production code, throw if v.type() is not String
+
+        // In production code, this probably needs to be case insensitive
+        if (v.raw() == "UNKNOWN")
+        {
+            return std::nullopt;
+        }
+        if (v.raw() == "BUY")
+        {
+            return OrderType::BUY;
+        }
+        if (v.raw() == "SELL")
+        {
+            return OrderType::SELL;
+        }
+
+        // In production code, throw here
+        return std::nullopt;
+    }
+};
+
 template<typename T>
 struct as<T, std::enable_if_t<std::is_floating_point_v<T>>>
 {
-    T operator()(const value) const
+    T operator()(const value v) const
     {
         // In production code, throw if v.type() is not Number
 
         // Of course this is just for test...
-        return 42;
+        if (v.raw() == "1")
+        {
+            return 42;
+        }
+        return as_default<T>(v);
     }
 };
 
@@ -75,8 +110,19 @@ struct as<T, std::enable_if_t<std::is_floating_point_v<T>>>
 
 TEST(minijson_reader_as_specializations, string_to_enum)
 {
-    minijson::value v(minijson::String, "BUY");
-    ASSERT_EQ(OrderType::BUY, v.as<OrderType>());
+    {
+        minijson::value v(minijson::String, "BUY");
+        ASSERT_EQ(OrderType::BUY, v.as<OrderType>());
+        ASSERT_EQ(OrderType::BUY, v.as<std::optional<OrderType>>());
+    }
+    {
+        minijson::value v(minijson::Null, "null");
+        ASSERT_EQ(std::nullopt, v.as<std::optional<OrderType>>());
+    }
+    {
+        minijson::value v(minijson::String, "UNKNOWN");
+        ASSERT_EQ(std::nullopt, v.as<std::optional<OrderType>>());
+    }
 }
 
 TEST(minijson_reader_as_specializations, floating_point)
@@ -88,6 +134,17 @@ TEST(minijson_reader_as_specializations, floating_point)
     // picked up
     ASSERT_EQ(42, v.as<double>());
     ASSERT_EQ(42, v.as<float>());
+
+    // Make sure that optional<T> uses our specialization
+    ASSERT_EQ(42, v.as<std::optional<double>>());
+    ASSERT_EQ(42, v.as<std::optional<float>>());
+}
+
+TEST(minijson_reader_as_specializations, floating_point_fallback)
+{
+    minijson::value v(minijson::Number, "12");
+    ASSERT_EQ(12, v.as<double>());
+    ASSERT_EQ(12, v.as<float>());
 }
 
 int main(int argc, char** argv)
