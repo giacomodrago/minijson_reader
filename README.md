@@ -84,7 +84,9 @@ minijson::parse_array(ctx, [&](minijson::value value)
 
 In both cases [`minijson::value`](#value) represents the field or element value.
 
-Both `name` and `value` can be safely copied, and all their copies will stay valid until the context is destroyed (or the underlying buffer is destroyed in case `buffer_context` is used).
+Both `name` and `value` can be safely copied, and all their copies will stay valid until the [context](#contexts) is destroyed (or the underlying buffer is destroyed in case [`buffer_context`](#buffer_context) is used).
+
+`parse_object` and `parse_array` return the number of bytes read from the input.
 
 ### `value`
 
