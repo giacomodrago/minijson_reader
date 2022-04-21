@@ -863,9 +863,15 @@ std::string_view parse_string(Context& context)
     return literal_io.finalize();
 }
 
-// forward declaration
-template<typename T>
-struct as;
+// Type trait to check if T is a specialization of std::optional
+template<typename T> struct is_std_optional
+    : std::false_type {};
+template<typename U> struct is_std_optional<std::optional<U>>
+    : std::true_type {};
+
+// Standard trick to prevent a static_assert() from always going off
+// when it is inside a final "else" of a sequence of "if constexpr" blocks
+template<typename> inline constexpr bool type_dependent_false = false;
 
 } // namespace detail
 
@@ -884,6 +890,9 @@ class bad_value_cast final : public std::invalid_argument
 public:
     using std::invalid_argument::invalid_argument;
 };
+
+template<typename T, typename Enable = void>
+struct as;
 
 class value final
 {
@@ -911,123 +920,131 @@ public:
     template<typename T>
     T as() const
     {
-        return detail::as<T>()(*this);
+        return minijson::as<T>()(*this);
     }
 
 private:
     value_type m_type = Null;
     std::string_view m_raw_value = "null";
-
-    template<typename T> friend struct detail::as;
 }; // class value
 
-namespace detail
-{
-
-// Trick to prevent static_assert() from always going off (see as_impl() below)
-template<typename>
-inline constexpr bool type_dependent_false = false;
-
+// Fallback behavior of value::as<T>() when no user-provided "struct as"
+// specialization for T exists.
+// This function is also meant to be called directly by the user in case they
+// need to fall back to the default behavior inside their "struct as"
+// specialization for T, for whatever reason.
 template<typename T>
-T as_impl(const value_type type, const std::string_view raw_value)
+T as_default(const value v)
 {
-    // Here we can assume that type is not Null: that was already checked
-    // by as<T> or its partial specialization as<std::optional<T>>
-
-    if (type == Object)
+    if constexpr (detail::is_std_optional<T>())
     {
-        throw bad_value_cast(
-            "cannot call value::as<T>() on values of type Object: "
-            "you have to call parse_object() on the same context");
-    }
-
-    if (type == Array)
-    {
-        throw bad_value_cast(
-            "cannot call value::as<T>() on values of type Array: "
-            "you have to call parse_array() on the same context");
-    }
-
-    if constexpr (std::is_same_v<T, std::string_view>)
-    {
-        if (type != String)
-        {
-            throw bad_value_cast("value::as<T>(): value type is not String");
-        }
-
-        return raw_value;
-    }
-    else if constexpr (std::is_same_v<T, bool>)
-    {
-        if (type != Boolean)
-        {
-            throw bad_value_cast("value::as<T>(): value type is not Boolean");
-        }
-
-        // If this value comes from parse_object() or parse_array(),
-        // as it should, we know that raw_value is either "true" or "false".
-        // However, we do a paranoia check for emptiness.
-        return !raw_value.empty() && raw_value[0] == 't';
-    }
-    else if constexpr (std::is_arithmetic_v<T>)
-    {
-        if (type != Number)
-        {
-            throw bad_value_cast("value::as<T>(): value type is not Number");
-        }
-
-        T result {}; // value initialize to silence compiler warnings
-        const auto begin = raw_value.data();
-        const auto end = raw_value.data() + raw_value.size();
-        const auto [parse_end, error] = std::from_chars(begin, end, result);
-        if (parse_end != end || error != std::errc())
-        {
-            throw std::range_error("value::as<T>() could not parse the number");
-        }
-        return result;
-    }
-    else // if constexpr
-    {
-        // We need the predicate of static_assert() to depend on T, otherwise
-        // the assert always goes off
+        using U = typename T::value_type;
         static_assert(
-            type_dependent_false<T>,
-            "value::as<T>(): T is not one of the supported types "
-            "(std::string_view, bool, arithmetic types, plus all of the "
-            "above wrapped in std::optional)");
-    }
-}
+            !detail::is_std_optional<U>(),
+            "it appears that T is std::optional<std::optional<...>> which is "
+            "unlikely to be what you meant to do");
 
-template<typename T>
-struct as
-{
-    T operator()(const value v) const
-    {
-        if (v.m_type == Null)
-        {
-            throw bad_value_cast(
-                "cannot call value::as<T>() on values of type Null: "
-                "consider checking value::type() first, or use "
-                "value::as<std::optional<T>>()");
-        }
-
-        return as_impl<T>(v.m_type, v.m_raw_value);
-    }
-}; // struct as
-
-template<typename T>
-struct as<std::optional<T>>
-{
-    std::optional<T> operator()(const value v) const
-    {
-        if (v.m_type == Null)
+        if (v.type() == Null)
         {
             return std::nullopt;
         }
 
-        return as_impl<T>(v.m_type, v.m_raw_value);
+        return v.as<U>();
     }
-}; // struct as<std::optional<T>>
+    else // not an optional
+    {
+        switch (v.type())
+        {
+        case Null:
+            throw bad_value_cast(
+                "cannot call value::as<T>() on values of type Null: "
+                "consider checking value::type() first, or use "
+                "value::as<std::optional<T>>()");
+
+        case Object:
+            throw bad_value_cast(
+                "cannot call value::as<T>() on values of type Object: "
+                "you have to call parse_object() on the same context");
+
+        case Array:
+            throw bad_value_cast(
+                "cannot call value::as<T>() on values of type Array: "
+                "you have to call parse_array() on the same context");
+
+        case String:
+        case Boolean:
+        case Number:
+            break;
+        }
+
+        const std::string_view raw = v.raw();
+
+        if constexpr (std::is_same_v<T, std::string_view>)
+        {
+            if (v.type() != String)
+            {
+                throw bad_value_cast(
+                    "value::as<T>(): value type is not String");
+            }
+
+            return raw;
+        }
+        else if constexpr (std::is_same_v<T, bool>)
+        {
+            if (v.type() != Boolean)
+            {
+                throw bad_value_cast(
+                    "value::as<T>(): value type is not Boolean");
+            }
+
+            // If this value comes from parse_object() or parse_array(),
+            // as it should, we know that raw is either "true" or "false".
+            // However, we do a paranoia check for emptiness.
+            return !raw.empty() && raw[0] == 't';
+        }
+        else if constexpr (std::is_arithmetic_v<T>)
+        {
+            if (v.type() != Number)
+            {
+                throw bad_value_cast(
+                    "value::as<T>(): value type is not Number");
+            }
+
+            T result {}; // value initialize to silence compiler warnings
+            const auto begin = raw.data();
+            const auto end = raw.data() + raw.size();
+            const auto [parse_end, error] = std::from_chars(begin, end, result);
+            if (parse_end != end || error != std::errc())
+            {
+                throw std::range_error(
+                    "value::as<T>() could not parse the number");
+            }
+            return result;
+        }
+        else // unsupported type
+        {
+            // We need the predicate of static_assert() to depend on T,
+            // otherwise the assert always goes off.
+            static_assert(
+                detail::type_dependent_false<T>,
+                "value::as<T>(): T is not one of the supported types "
+                "(std::string_view, bool, arithmetic types, plus all of the "
+                "above wrapped in std::optional)");
+        }
+    }
+}
+
+template<typename T, typename Enable>
+struct as final
+{
+    T operator()(const value v) const
+    {
+        return as_default<T>(v);
+    }
+};
+
+namespace detail
+{
 
 // Convenience function to consume a verbatim sequence of characters
 // in a value not enclosed in quotes (in practice, Null and Boolean).

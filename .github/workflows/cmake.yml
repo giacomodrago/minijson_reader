@@ -74,7 +74,7 @@ jobs:
       env:
         GCOV: gcov-11
 
-    - if: ${{matrix.os == 'ubuntu-latest' && matrix.compiler == 'g++-11' && matrix.build_type == 'Debug'}}
+    - if: ${{always() && matrix.os == 'ubuntu-latest' && matrix.compiler == 'g++-11' && matrix.build_type == 'Debug'}}
       name: (Linux/gcc/debug Only) Archive code coverage results
       uses: actions/upload-artifact@v3
       with:
@@ -88,4 +88,6 @@ jobs:
     - if: ${{matrix.os == 'ubuntu-latest'}}
       name: (Linux Only) Test with valgrind
       working-directory: ${{github.workspace}}/build
-      run: valgrind --child-silent-after-fork=yes --error-exitcode=42 --leak-check=full ./minijson_reader_tests
+      run: >
+        valgrind --child-silent-after-fork=yes --error-exitcode=42 --leak-check=full ./minijson_reader_tests &&
+        valgrind --child-silent-after-fork=yes --error-exitcode=42 --leak-check=full ./minijson_reader_as_specializations_tests
