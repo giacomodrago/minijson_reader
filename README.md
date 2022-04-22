@@ -192,7 +192,7 @@ struct value_as<T, std::enable_if_t<std::is_floating_point_v<T>>>
         }
 
         // Unclear why anyone would want to do this (it's just an example...)
-        return boost::lexical_cast<double>(v.raw());
+        return boost::lexical_cast<T>(v.raw());
 
         // Note: you can always fall back to the default behavior like so:
         // return value_as_default<T>(v);
