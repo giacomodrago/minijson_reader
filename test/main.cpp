@@ -2393,15 +2393,15 @@ TEST(minijson_dispatch, parse_object)
     parse_object(ctx, [&](std::string_view k, value v)
     {
         dispatch (k)
-        <<"field1">> [&]{obj.field1 = v.as<long>();}
-        <<"field2">> [&]{obj.field2 = v.as<std::string_view>();}
+        <<"field1">> [&]{v.to(obj.field1);}
+        <<"field2">> [&]{v.to(obj.field2);}
         <<"nested">> [&]
         {
             parse_object(ctx, [&](std::string_view k, value v)
             {
                 dispatch (k)
-                <<"field1">> [&]{obj.nested.field1 = v.as<double>();}
-                <<"field2">> [&]{obj.nested.field2 = v.as<bool>();}
+                <<"field1">> [&]{v.to(obj.nested.field1);}
+                <<"field2">> [&]{v.to<bool>(obj.nested.field2);}
                 <<any>> [&]{ignore(ctx);};
             });
         }

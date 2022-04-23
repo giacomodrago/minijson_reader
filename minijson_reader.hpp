@@ -990,6 +990,13 @@ public:
         return value_as<T>()(*this);
     }
 
+    template<typename T>
+    T& to(T& dest) const
+    {
+        dest = as<T>();
+        return dest;
+    }
+
 private:
     value_type m_type = Null;
     std::string_view m_raw_value = "null";
