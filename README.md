@@ -84,19 +84,21 @@ minijson::parse_array(ctx, [&](minijson::value value)
 });
 ```
 
-In both cases [`minijson::value`](#value) represents the field or element value.
+[`minijson::value`](#value) represents the object field or array element value. [Parsing nested objects or arrays](#parsing-nested-objects-or-arrays), however, requires an explicit recursive call.
 
 Both `name` and `value` can be safely copied, and all their copies will stay valid until the [context](#contexts) is destroyed (or the underlying buffer is destroyed in case [`buffer_context`](#buffer_context) is used).
+
+The functor passed to `parse_object` or `parse_array` may optionally accept a [context](#contexts) as the last parameter, in which case it will be passed the current parsing [context](#contexts), thus preventing the need to capture it inside the functor.
 
 `parse_object` and `parse_array` return the number of bytes read from the input.
 
 ### `value`
 
-Field and element values are accessible through instances of the `minijson::value` class.
+Object field and array element **values** are accessible through instances of the `minijson::value` class.
 
 `value` has the following public methods:
 
-- **`minijson::value_type type()`**. The type of the value (`String`, `Number`, `Boolean`, `Object`, `Array` or `Null`).
+- **`minijson::value_type type()`**. The type of the value (`String`, `Number`, `Boolean`, `Object`, `Array` or `Null`). When the type of a `value` is `Object` or `Array`, you **must** [parse the nested object or array](#parsing-nested-objects-or-arrays) by means of an explicit recursive call into `parse_object` or `parse_array` respectively.
 - **`template<typename T> T as()`**. The value as a `T`, where `T` is one of the following:
   - **`std::string_view`**. UTF-8 encoded string. This representation is available when `type()` is `String`; in all the other cases `minijson::bad_value_cast` is thrown. The lifetime of the returned `std::string_view` is that of the parsing [context](#contexts), except for [`buffer_context`](#buffer_context), in which case the `std::string_view` will stay valid until the underlying input buffer is destroyed.
   - **`bool`**. Only available when `type()` is `Boolean`; in all the other cases `minijson::bad_value_cast` is thrown.
@@ -109,15 +111,19 @@ The behavior of `value::as()` [can be customized](#customizing-valueas).
 
 ### Parsing nested objects or arrays
 
-When the `type()` of a `value` is `Object` or `Array`, you **must** parse the nested object or array by doing something like:
+When the `type()` of a `value` is `Object` or `Array`, you **must** parse the nested object or array by means of an explicit recursive call into `parse_object` or `parse_array` respectively, e.g.:
 
 ```cpp
 // let ctx be a context
 minijson::parse_object(ctx, [&](std::string_view name, minijson::value value)
 {
     // ...
-    if (name == "..." && value.type() == minijson::Object)
+    if (name == "...")
     {
+        if (value.type() != minijson::Object)
+        {
+            throw some_exception("we were expecting an Object here");
+        }
         minijson::parse_object(ctx, [&](std::string_view name, minijson::value value)
         {
            // parse the nested object
@@ -135,8 +141,12 @@ While all other fields and values can be simply ignored by omission, failing to 
 minijson::parse_object(ctx, [&](std::string_view name, minijson::value value)
 {
     // ...
-    if (name == "..." && value.type() == minijson::Object)
+    if (name == "...")
     {
+        if (value.type() != minijson::Object)
+        {
+            throw some_exception("we were expecting an Object here");
+        }
         minijson::ignore(ctx); // proper way to ignore a nested object
     }
 });
