@@ -32,11 +32,12 @@
 #include <cstdint>
 #include <cstdlib>
 #include <forward_list>
+#include <functional>
 #include <istream>
 #include <optional>
+#include <ostream>
 #include <stdexcept>
 #include <string_view>
-#include <ostream>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -1468,7 +1469,26 @@ std::size_t parse_object(Context& context, Handler&& handler)
             break;
 
         case FIELD_VALUE:
-            handler(field_name, detail::parse_value(context, c, must_read));
+            {
+                const value v = detail::parse_value(context, c, must_read);
+
+                // Try calling the handler with the context as the last argument
+                if constexpr (
+                    std::is_invocable_v<
+                        decltype(handler),
+                        decltype(field_name),
+                        decltype(v),
+                        decltype(context)>)
+                {
+                    std::invoke(handler, field_name, v, context);
+                }
+                else
+                {
+                    // Now try again without the context. Generate a compile
+                    // error if it does not work.
+                    std::invoke(handler, field_name, v);
+                }
+            }
             state = COMMA_OR_CLOSING_BRACKET;
             break;
 
@@ -1575,7 +1595,25 @@ std::size_t parse_array(Context& context, Handler&& handler)
             [[fallthrough]];
 
         case VALUE:
-            handler(detail::parse_value(context, c, must_read));
+            {
+                const value v = detail::parse_value(context, c, must_read);
+
+                // Try calling the handler with the context as the last argument
+                if constexpr (
+                    std::is_invocable_v<
+                        decltype(handler),
+                        decltype(v),
+                        decltype(context)>)
+                {
+                    std::invoke(handler, v, context);
+                }
+                else
+                {
+                    // Now try again without the context. Generate a compile
+                    // error if it does not work.
+                    std::invoke(handler, v);
+                }
+            }
             state = COMMA_OR_CLOSING_BRACKET;
             break;
 

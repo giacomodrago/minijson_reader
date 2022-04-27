@@ -1307,14 +1307,14 @@ struct parse_object_nested_handler
 
             minijson::parse_object(
                 context,
-                [&](std::string_view n, minijson::value v)
+                [&](std::string_view n, minijson::value v, auto& ctx)
                 {
                     ASSERT_EQ("nested2", n);
                     ASSERT_EQ(minijson::Object, v.type());
                     ASSERT_FALSE(flags[0]);
 
                     minijson::parse_object(
-                        context, [&](std::string_view n, minijson::value v)
+                        ctx, [&](std::string_view n, minijson::value v)
                         {
                             if (n == "val1")
                             {
@@ -1330,7 +1330,7 @@ struct parse_object_nested_handler
                                 flags[2] = 1;
                                 ASSERT_EQ(minijson::Array, v.type());
                                 minijson::parse_array(
-                                    context, [](minijson::value)
+                                    ctx, [](minijson::value)
                                     {
                                         FAIL();
                                     });
@@ -1607,7 +1607,7 @@ struct parse_array_nested_handler
             std::size_t counter_nested = 0;
             minijson::parse_array(
                 context,
-                [&](const minijson::value v)
+                [&](const minijson::value v, auto& ctx)
                 {
                     switch (counter_nested++)
                     {
@@ -1617,7 +1617,7 @@ struct parse_array_nested_handler
                         break;
                     case 1:
                         ASSERT_EQ(minijson::Object, v.type());
-                        minijson::parse_object(context, [](auto...){FAIL();});
+                        minijson::parse_object(ctx, [](auto...){FAIL();});
                         break;
                     default:
                         FAIL();
