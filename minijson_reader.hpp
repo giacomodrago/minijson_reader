@@ -1657,104 +1657,6 @@ std::size_t parse_array(Context& context, Handler&& handler)
 namespace detail
 {
 
-class dispatch_rule; // forward declaration
-class dispatch_rule_any; // forward declaration
-
-struct dispatch_rule_any_tag
-{
-};
-
-} // namespace detail
-
-class dispatch final
-{
-public:
-    explicit dispatch(const std::string_view field_name) noexcept
-    : m_field_name(field_name)
-    {
-    }
-
-    dispatch(const dispatch&) = delete;
-    dispatch(dispatch&&) = delete;
-    dispatch& operator=(const dispatch&) = delete;
-    dispatch& operator=(dispatch&&) = delete;
-
-    detail::dispatch_rule operator<<(std::string_view field_name) noexcept;
-
-    detail::dispatch_rule_any
-    operator<<(detail::dispatch_rule_any_tag) noexcept;
-
-private:
-    std::string_view m_field_name;
-    bool m_handled = false;
-
-    friend class detail::dispatch_rule;
-    friend class detail::dispatch_rule_any;
-}; // class dispatch
-
-namespace detail
-{
-
-class dispatch_rule final
-{
-public:
-    explicit dispatch_rule(
-        dispatch& dispatch,
-        const std::string_view field_name) noexcept
-    : m_dispatch(dispatch)
-    , m_field_name(field_name)
-    {
-    }
-
-    dispatch_rule(const dispatch_rule&) = delete;
-    dispatch_rule(dispatch_rule&&) noexcept = default;
-    dispatch_rule& operator=(const dispatch_rule&) = delete;
-    dispatch_rule& operator=(dispatch_rule&&) = delete;
-
-    template<typename Handler>
-    dispatch& operator>>(Handler&& handler) const
-    {
-        if (!m_dispatch.m_handled && m_dispatch.m_field_name == m_field_name)
-        {
-            handler();
-            m_dispatch.m_handled = true;
-        }
-
-        return m_dispatch;
-    }
-
-private:
-    dispatch& m_dispatch;
-    std::string_view m_field_name;
-}; // class dispatch_rule
-
-class dispatch_rule_any final
-{
-public:
-    explicit dispatch_rule_any(dispatch& dispatch) noexcept
-    : m_dispatch(dispatch)
-    {
-    }
-
-    dispatch_rule_any(const dispatch_rule_any&) = delete;
-    dispatch_rule_any(dispatch_rule_any&&) noexcept = default;
-    dispatch_rule_any& operator=(const dispatch_rule_any&) = delete;
-    dispatch_rule_any& operator=(dispatch_rule_any&&) = delete;
-
-    template<typename Handler>
-    void operator>>(Handler&& handler) const
-    {
-        if (!m_dispatch.m_handled)
-        {
-            handler();
-            m_dispatch.m_handled = true;
-        }
-    }
-
-private:
-    dispatch& m_dispatch;
-}; // class dispatch_rule_any
-
 template<typename Context>
 class ignore final
 {
@@ -1798,21 +1700,36 @@ private:
     Context& m_context;
 }; // class ignore
 
+// Base for unhandled_field_error and missing_field_error
+class dispatcher_error_base : public std::exception
+{
+public:
+    explicit dispatcher_error_base(const std::string_view field_name) noexcept
+    : m_field_name_truncated_length(
+        std::min(MAX_FIELD_NAME_LENGTH, field_name.size()))
+    {
+        std::copy_n(
+            field_name.begin(),
+            m_field_name_truncated_length,
+            m_field_name_truncated.begin());
+    }
+
+    std::string_view field_name_truncated() const noexcept
+    {
+        return {m_field_name_truncated.data(), m_field_name_truncated_length};
+    }
+
+    inline static constexpr std::size_t MAX_FIELD_NAME_LENGTH = 55;
+
+private:
+    // The temptation of storing a the field name here as a std::string_view
+    // is almost irresistible, but it would tie the validity of this exception
+    // to that of the dispatcher or, even worse, the parsing context
+    std::size_t m_field_name_truncated_length = 0;
+    std::array<char, MAX_FIELD_NAME_LENGTH + 1> m_field_name_truncated {};
+}; // class dispatcher_error_base
+
 } // namespace detail
-
-inline detail::dispatch_rule
-dispatch::operator<<(const std::string_view field_name) noexcept
-{
-    return detail::dispatch_rule(*this, field_name);
-}
-
-inline detail::dispatch_rule_any
-dispatch::operator<<(detail::dispatch_rule_any_tag) noexcept
-{
-    return detail::dispatch_rule_any(*this);
-}
-
-inline constexpr const detail::dispatch_rule_any_tag any;
 
 template<typename Context>
 void ignore(Context& context)
@@ -1820,6 +1737,413 @@ void ignore(Context& context)
     detail::ignore<Context> ignore(context);
     ignore();
 }
+
+namespace handlers
+{
+
+namespace detail
+{
+
+// Tags to declare handler traits
+struct handler_tag {};
+struct field_specific_handler_tag {};
+struct required_field_handler_tag {};
+struct ignore_handler_tag {};
+
+// Base class for field-specific handlers
+template<typename Functor, typename... Tag>
+class field_specific_handler_base
+    : public handler_tag
+    , public field_specific_handler_tag
+    , public Tag...
+{
+public:
+    explicit field_specific_handler_base(
+        const std::string_view field_name,
+        Functor functor)
+    : m_field_name(field_name)
+    , m_functor(std::move(functor))
+    {
+    }
+
+    std::string_view field_name() const noexcept
+    {
+        return m_field_name;
+    }
+
+    const Functor& functor() const noexcept
+    {
+        return m_functor;
+    }
+
+    template<typename Context, typename... Target>
+    bool operator()(
+        const std::string_view parsed_field_name,
+        const value value,
+        Context& context,
+        Target&... target) const
+    {
+        if (parsed_field_name != m_field_name)
+        {
+            return false;
+        }
+
+        // Try calling the functor with the context as the last argument
+        if constexpr (
+            std::is_invocable_v<
+                decltype(m_functor),
+                decltype(target)...,
+                decltype(value),
+                decltype(context)>)
+        {
+            std::invoke(m_functor, target..., value, context);
+        }
+        else
+        {
+            // Now try again without the context. Generate a compile error if
+            // it does not work.
+            std::invoke(m_functor, target..., value);
+        }
+
+        return true;
+    }
+
+private:
+    std::string_view m_field_name;
+    Functor m_functor;
+}; // class field_specific_handler_base
+
+// Base class for non-field-specific handlers
+template<typename Functor, typename... Tag>
+class any_handler_base : public handler_tag, public Tag...
+{
+public:
+    any_handler_base(Functor functor)
+    : m_functor(std::move(functor))
+    {
+    }
+
+    const Functor& functor() const noexcept
+    {
+        return m_functor;
+    }
+
+    template<typename Context, typename... Target>
+    bool operator()(
+        const std::string_view parsed_field_name,
+        const value value,
+        Context& context,
+        Target&... target) const
+    {
+        // Try calling the functor with the context as the last argument
+        if constexpr (
+            std::is_invocable_v<
+                decltype(m_functor),
+                decltype(target)...,
+                decltype(parsed_field_name),
+                decltype(value),
+                decltype(context)>)
+        {
+            return std::invoke(
+                m_functor,
+                target...,
+                parsed_field_name,
+                value,
+                context);
+        }
+        else
+        {
+            // Now try again without the context. Generate a compile error if
+            // it does not work.
+            return std::invoke(m_functor, target..., parsed_field_name, value);
+        }
+    }
+
+private:
+    Functor m_functor;
+}; // class any_handler_base
+
+// Functor for all handlers which ignore the field
+struct ignore_functor final
+{
+    template<typename... Args>
+    bool operator()(Args&&... args) const
+    {
+        // The context is the last argument we are being passed, extract it
+        const auto args_tuple =
+            std::forward_as_tuple(std::forward<Args>(args)...);
+        auto& context = std::get<sizeof...(args) - 1>(args_tuple);
+
+        // Call ignore to discard the current value
+        ignore(context);
+
+        return true;
+    }
+}; // struct ignore_functor
+
+} // namespace handlers::detail
+
+template<typename Functor>
+class handler final
+    : public detail::field_specific_handler_base<
+        Functor,
+        detail::required_field_handler_tag>
+{
+public:
+    handler(const std::string_view field_name, Functor functor)
+    : detail::field_specific_handler_base<
+        Functor,
+        detail::required_field_handler_tag>(
+            field_name,
+            std::move(functor))
+    {
+    }
+}; // class handler
+
+template<typename Functor>
+class optional_handler final
+    : public detail::field_specific_handler_base<Functor>
+{
+public:
+    optional_handler(const std::string_view field_name, Functor functor)
+    : detail::field_specific_handler_base<Functor>(
+        field_name,
+        std::move(functor))
+    {
+    }
+}; // class optional_handler
+
+template<typename Functor>
+class any_handler final : public detail::any_handler_base<Functor>
+{
+public:
+    any_handler(Functor functor)
+    : detail::any_handler_base<Functor>(std::move(functor))
+    {
+    }
+}; // class any_handler
+
+class ignore_handler final
+    : public detail::field_specific_handler_base<
+        detail::ignore_functor,
+        detail::ignore_handler_tag>
+{
+public:
+    ignore_handler(const std::string_view field_name)
+    : detail::field_specific_handler_base<
+        detail::ignore_functor,
+        detail::ignore_handler_tag>(
+            field_name,
+            detail::ignore_functor())
+    {
+    }
+}; // class ignore_handler
+
+class ignore_any_handler final
+    : public detail::any_handler_base<
+        detail::ignore_functor,
+        detail::ignore_handler_tag>
+{
+public:
+    ignore_any_handler()
+    : detail::any_handler_base<
+        detail::ignore_functor,
+        detail::ignore_handler_tag>(
+            detail::ignore_functor())
+    {
+    }
+}; // class ignore_any_handler
+
+template<typename Handler, typename Enable = void>
+struct traits;
+
+template<typename Handler>
+struct traits<
+    Handler,
+    std::enable_if_t<
+        std::is_base_of_v<
+            detail::handler_tag,
+            std::remove_reference_t<Handler>>>> final
+{
+    static inline constexpr bool is_field_specific =
+        std::is_base_of_v<
+            detail::field_specific_handler_tag,
+            std::remove_reference_t<Handler>>;
+
+    static inline constexpr bool is_required_field =
+        std::is_base_of_v<
+            detail::required_field_handler_tag,
+            std::remove_reference_t<Handler>>;
+
+    static inline constexpr bool is_ignore =
+        std::is_base_of_v<
+            detail::ignore_handler_tag,
+            std::remove_reference_t<Handler>>;
+};
+
+} // namespace handlers
+
+class unhandled_field_error final : public detail::dispatcher_error_base
+{
+public:
+    using detail::dispatcher_error_base::dispatcher_error_base;
+
+    virtual const char* what() const noexcept override
+    {
+        return "a JSON field was not handled";
+    }
+}; // class unhandled_field_error
+
+class missing_field_error final : public detail::dispatcher_error_base
+{
+public:
+    using detail::dispatcher_error_base::dispatcher_error_base;
+
+    virtual const char* what() const noexcept override
+    {
+        return "at least one required JSON field is missing";
+    }
+}; // class missing_field_error
+
+template<typename Dispatcher, typename... Target>
+class dispatcher_run final
+{
+public:
+    dispatcher_run(Dispatcher& dispatcher, Target&... target) noexcept
+    : m_dispatcher(dispatcher)
+    , m_targets(target...)
+    {
+    }
+
+    dispatcher_run(const dispatcher_run&) = delete;
+    dispatcher_run(dispatcher_run&&) = default;
+    dispatcher_run& operator=(const dispatcher_run&) = delete;
+    dispatcher_run& operator=(dispatcher_run&&) = delete;
+
+    template<typename Context>
+    void operator()(
+        const std::string_view parsed_field_name,
+        const value value,
+        Context& context)
+    {
+        // AFAIK, in pre-C++20 we are forced to resort to a helper function
+        // rather than use a template lambda which would be more readable
+        call_helper(
+            parsed_field_name,
+            value,
+            context,
+            std::make_index_sequence<Dispatcher::n_handlers>());
+    }
+
+    template<typename Inspector>
+    void inspect(Inspector&& inspector) const
+    {
+        // AFAIK, in pre-C++20 we are forced to resort to a helper function
+        // rather than use a template lambda which would be more readable
+        inspect_helper(
+            inspector,
+            std::make_index_sequence<Dispatcher::n_handlers>());
+    }
+
+    void enforce_required() const
+    {
+        inspect(
+            [](const auto& handler, const std::size_t handle_count)
+            {
+                if constexpr (
+                    handlers::traits<decltype(handler)>::is_required_field)
+                {
+                    if (handle_count == 0)
+                    {
+                        throw missing_field_error(handler.field_name());
+                    }
+                }
+            });
+    }
+
+private:
+    // Helper of operator()() to get a sequence of indices
+    template<typename Context, std::size_t... I>
+    void call_helper(
+        const std::string_view parsed_field_name,
+        const value value,
+        Context& context,
+        std::index_sequence<I...>)
+    {
+        if (!(... || offer_to_handler<I>(parsed_field_name, value, context)))
+        {
+            throw unhandled_field_error(parsed_field_name);
+        }
+    }
+
+    template<typename Inspector, std::size_t... I>
+    void inspect_helper(Inspector& inspector, std::index_sequence<I...>) const
+    {
+        (..., std::invoke(
+            inspector,
+            std::get<I>(m_dispatcher.handlers()),
+            std::get<I>(m_handle_count)));
+    }
+
+    // Offer this field to the I-th handler of the dispatcher.
+    // If the handler chooses to handle it, then increment the I-th
+    // m_handle_count entry and return true. Otherwise, return false.
+    template<std::size_t I, typename Context>
+    bool offer_to_handler(
+        const std::string_view parsed_field_name,
+        const value value,
+        Context& context)
+    {
+        std::size_t& handle_count = std::get<I>(m_handle_count);
+        auto& handler = std::get<I>(m_dispatcher.handlers());
+
+        return std::apply(
+            [&](auto&... target)
+            {
+                if (handler(parsed_field_name, value, context, target...))
+                {
+                    ++handle_count;
+                    return true;
+                }
+                return false;
+            },
+            m_targets);
+    }
+
+    Dispatcher& m_dispatcher;
+    std::tuple<Target&...> m_targets;
+
+    // Tracks how many times the i-th handler decided to handle a field
+    std::array<std::size_t, Dispatcher::n_handlers> m_handle_count {};
+}; // class dispatcher_run
+
+template<typename... Handler>
+class dispatcher final
+{
+public:
+    dispatcher(Handler... handler)
+    : m_handlers {std::move(handler)...}
+    {
+    }
+
+    template<typename Context, typename... Target>
+    void run(Context& context, Target&... target) const
+    {
+        dispatcher_run run(*this, target...);
+        minijson::parse_object(context, run);
+        run.enforce_required();
+    }
+
+    const std::tuple<Handler...>& handlers() const noexcept
+    {
+        return m_handlers;
+    }
+
+    inline static constexpr std::size_t n_handlers = sizeof...(Handler);
+
+private:
+    std::tuple<Handler...> m_handlers;
+}; // class dispatcher
 
 } // namespace minijson
 
