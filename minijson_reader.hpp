@@ -31,8 +31,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <forward_list>
 #include <istream>
-#include <list>
 #include <optional>
 #include <stdexcept>
 #include <string_view>
@@ -355,12 +355,12 @@ public:
 
     void begin_literal()
     {
-        m_literals.emplace_back();
+        m_literals.emplace_front();
     }
 
     void write(const char c)
     {
-        m_literals.back().push_back(c);
+        m_literals.front().push_back(c);
     }
 
     // This method to retrieve the address of the current literal MUST be called
@@ -368,20 +368,20 @@ public:
     // performed
     const char* current_literal() const noexcept
     {
-        const std::vector<char>& literal = m_literals.back();
+        const std::vector<char>& literal = m_literals.front();
 
         return !literal.empty() ? literal.data() : nullptr;
     }
 
     std::size_t current_literal_length() const noexcept
     {
-        return m_literals.back().size();
+        return m_literals.front().size();
     }
 
 private:
     std::istream* m_stream;
     std::size_t m_read_offset = 0;
-    std::list<std::vector<char>> m_literals;
+    std::forward_list<std::vector<char>> m_literals;
 }; // class istream_context
 
 class parse_error final : public std::exception
