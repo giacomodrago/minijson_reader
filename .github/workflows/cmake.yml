@@ -90,4 +90,5 @@ jobs:
       working-directory: ${{github.workspace}}/build
       run: >
         valgrind --child-silent-after-fork=yes --error-exitcode=42 --leak-check=full ./test_main &&
-        valgrind --child-silent-after-fork=yes --error-exitcode=42 --leak-check=full ./test_value_as
+        valgrind --error-exitcode=42 --leak-check=full ./test_value_as &&
+        valgrind --error-exitcode=42 --leak-check=full ./test_dispatcher

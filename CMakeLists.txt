@@ -67,9 +67,14 @@ add_executable(test_value_as test/value_as.cpp)
 target_link_libraries(test_value_as ${GTEST_BOTH_LIBRARIES})
 add_test(NAME test_value_as COMMAND test_value_as)
 
+add_executable(test_dispatcher test/dispatcher.cpp)
+target_link_libraries(test_dispatcher ${GTEST_BOTH_LIBRARIES})
+add_test(NAME test_dispatcher COMMAND test_dispatcher)
+
 if(UNIX)
     target_link_libraries(test_main pthread)
     target_link_libraries(test_value_as pthread)
+    target_link_libraries(test_dispatcher pthread)
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_COMPILER_IS_GNUCXX)
@@ -84,8 +89,8 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_COMPILER_IS_GNUCXX)
 
     setup_target_for_coverage_gcovr_html(
         NAME coverage
-        DEPENDENCIES test_main
-        EXECUTABLE test_main
-        EXCLUDE "test/main.cpp" "test/value_as.cpp"
+        DEPENDENCIES test_main test_value_as test_dispatcher
+        EXECUTABLE ctest
+        EXCLUDE "test/main.cpp" "test/value_as.cpp" "test/dispatcher.cpp"
     )
 endif()
