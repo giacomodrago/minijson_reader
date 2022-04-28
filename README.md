@@ -51,7 +51,9 @@ minijson::istream_context ctx(input);
 
 ### More about contexts
 
-Contexts cannot be copied, nor moved. Even if the context classes may have public methods, the client must not rely on them, as they may change without prior notice. The client-facing interface is limited to the constructor and the destructor.
+Contexts cannot be copied, but can be moved. Using a context that has been moved from causes undefined behavior.
+
+Even if the context classes may have public methods, the client must not rely on them, as they may change without prior notice. The client-facing interface is limited to the constructor and the destructor.
 
 The client can implement custom context classes, although the authors of this library do not yet provide a formal definition of a `Context` concept, which has to be reverse engineered from the source code, and can change without prior notice.
 

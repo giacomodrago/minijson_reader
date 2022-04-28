@@ -59,9 +59,9 @@ class context_base
 {
 public:
     context_base(const context_base&) = delete;
-    context_base(context_base&&) = delete;
+    context_base(context_base&&) = default;
     context_base& operator=(const context_base&) = delete;
-    context_base& operator=(context_base&&) = delete;
+    context_base& operator=(context_base&&) = default;
 
     enum context_nested_status
     {
@@ -111,6 +111,37 @@ private:
 class buffer_context_base : public context_base
 {
 public:
+    buffer_context_base(const buffer_context_base&) = delete;
+
+    buffer_context_base(buffer_context_base&& other) noexcept
+    : context_base(std::move(other))
+    , m_read_buffer(other.m_read_buffer)
+    , m_write_buffer(other.m_write_buffer)
+    , m_length(other.m_length)
+    , m_read_offset(other.m_read_offset)
+    , m_write_offset(other.m_write_offset)
+    , m_current_literal(other.m_current_literal)
+    {
+        other.m_read_buffer = nullptr;
+        other.m_write_buffer = nullptr;
+        other.m_length = 0;
+        other.m_read_offset = 0;
+        other.m_write_offset = 0;
+        other.m_current_literal = nullptr;
+    }
+
+    buffer_context_base& operator=(const buffer_context_base&) = delete;
+
+    buffer_context_base& operator=(buffer_context_base&& other) noexcept
+    {
+        if (this != &other)
+        {
+            auto moved(std::move(other));
+            swap(moved);
+        }
+        return *this;
+    }
+
     char read() noexcept
     {
         if (m_read_offset >= m_length)
@@ -158,6 +189,27 @@ public:
         return m_write_buffer + m_write_offset - m_current_literal;
     }
 
+    void swap(buffer_context_base& other) noexcept
+    {
+        using std::swap;
+        swap(
+            static_cast<context_base&>(*this),
+            static_cast<context_base&>(other));
+        swap(m_read_buffer, other.m_read_buffer);
+        swap(m_write_buffer, other.m_write_buffer);
+        swap(m_length, other.m_length);
+        swap(m_read_offset, other.m_read_offset);
+        swap(m_write_offset, other.m_write_offset);
+        swap(m_current_literal, other.m_current_literal);
+    }
+
+    friend void swap(
+        buffer_context_base& lhs,
+        buffer_context_base& rhs) noexcept
+    {
+        lhs.swap(rhs);
+    }
+
 protected:
     explicit buffer_context_base(
         const char* const read_buffer,
@@ -175,8 +227,8 @@ protected:
     }
 
 private:
-    const char* const m_read_buffer;
-    char* const m_write_buffer;
+    const char* m_read_buffer;
+    char* m_write_buffer;
     std::size_t m_length;
     std::size_t m_read_offset = 0;
     std::size_t m_write_offset = 0;
@@ -238,6 +290,11 @@ public:
     : detail::buffer_context_base(buffer, buffer, length)
     {
     }
+
+    buffer_context(const buffer_context&) = delete;
+    buffer_context(buffer_context&&) = default;
+    buffer_context& operator=(const buffer_context&) = delete;
+    buffer_context& operator=(buffer_context&&) = default;
 }; // class buffer_context
 
 class const_buffer_context final : public detail::buffer_context_base
@@ -251,6 +308,11 @@ public:
     {
     }
 
+    const_buffer_context(const const_buffer_context&) = delete;
+    const_buffer_context(const_buffer_context&&) = default;
+    const_buffer_context& operator=(const const_buffer_context&) = delete;
+    const_buffer_context& operator=(const_buffer_context&&) = default;
+
     ~const_buffer_context() noexcept
     {
         delete[] write_buffer();
@@ -261,15 +323,20 @@ class istream_context final : public detail::context_base
 {
 public:
     explicit istream_context(std::istream& stream)
-    : m_stream(stream)
+    : m_stream(&stream)
     {
     }
 
+    istream_context(const istream_context&) = delete;
+    istream_context(istream_context&&) = default;
+    istream_context& operator=(const istream_context&) = delete;
+    istream_context& operator=(istream_context&&) = default;
+
     char read()
     {
-        const int c = m_stream.get();
+        const int c = m_stream->get();
 
-        if (m_stream)
+        if (*m_stream)
         {
             ++m_read_offset;
 
@@ -312,7 +379,7 @@ public:
     }
 
 private:
-    std::istream& m_stream;
+    std::istream* m_stream;
     std::size_t m_read_offset = 0;
     std::list<std::vector<char>> m_literals;
 }; // class istream_context

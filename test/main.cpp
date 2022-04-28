@@ -33,6 +33,11 @@
 template<typename Context>
 void test_context_helper(Context& context)
 {
+    {
+        Context temp(std::move(context));
+        context = std::move(temp);
+    }
+
     context.begin_literal();
     bool loop = true;
     while (loop)
@@ -68,6 +73,10 @@ void test_context_helper(Context& context)
         case 6:
             ASSERT_EQ('w', context.read());
             context.write('W');
+            {
+                Context temp(std::move(context));
+                context = std::move(temp);
+            }
             break;
         case 7:
             ASSERT_EQ('o', context.read());
@@ -96,6 +105,11 @@ void test_context_helper(Context& context)
         }
     }
 
+    {
+        Context temp(std::move(context));
+        context = std::move(temp);
+    }
+
     ASSERT_EQ(0, context.read());
     ASSERT_EQ(12U, context.read_offset());
     ASSERT_STREQ("World", context.current_literal());
@@ -113,16 +127,21 @@ void test_context_helper(Context& context)
     ASSERT_EQ(
         minijson::detail::context_base::NESTED_STATUS_ARRAY,
         context.nested_status());
-    ASSERT_EQ(2U, context.nesting_level());
-    context.end_nested();
-    ASSERT_EQ(1U, context.nesting_level());
-    context.end_nested();
-    ASSERT_EQ(0U, context.nesting_level());
 
-    context.reset_nested_status();
+    Context other_context(std::move(context));
+    ASSERT_EQ(2U, other_context.nesting_level());
+    other_context.end_nested();
+    ASSERT_EQ(1U, other_context.nesting_level());
+    other_context.end_nested();
+    ASSERT_EQ(0U, other_context.nesting_level());
+
+    other_context.reset_nested_status();
     ASSERT_EQ(
         minijson::detail::context_base::NESTED_STATUS_NONE,
-        context.nested_status());
+        other_context.nested_status());
+
+    using std::swap;
+    swap(context, other_context);
 }
 
 TEST(minijson_reader, buffer_context)
