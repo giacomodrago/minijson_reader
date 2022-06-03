@@ -529,6 +529,24 @@ TEST(minijson_reader_detail, parse_string_invalid)
         "Invalid escape sequence");
 
     parse_string_invalid_helper(
+        "foo\nfoo\"",
+        minijson::parse_error::UNESCAPED_CONTROL_CHARACTER,
+        3,
+        "Unescaped control character");
+
+    parse_string_invalid_helper(
+        "foo\x01""foo\"",
+        minijson::parse_error::UNESCAPED_CONTROL_CHARACTER,
+        3,
+        "Unescaped control character");
+
+    parse_string_invalid_helper(
+        "foo\x1F""foo\"",
+        minijson::parse_error::UNESCAPED_CONTROL_CHARACTER,
+        3,
+        "Unescaped control character");
+
+    parse_string_invalid_helper(
         "\\uD800\\uD7FF\"",
         minijson::parse_error::INVALID_UTF16_CHARACTER,
         11,
@@ -2114,6 +2132,18 @@ TEST(minijson_reader, parse_object_invalid)
         minijson::parse_error::INVALID_ESCAPE_SEQUENCE);
 
     parse_object_invalid_helper(
+        "{\"foo\nfoo\":\"\"}",
+        minijson::parse_error::UNESCAPED_CONTROL_CHARACTER);
+
+    parse_object_invalid_helper(
+        "{\"foo\x01""foo\":\"\"}",
+        minijson::parse_error::UNESCAPED_CONTROL_CHARACTER);
+
+    parse_object_invalid_helper(
+        "{\"foo\x1F""foo\":\"\"}",
+        minijson::parse_error::UNESCAPED_CONTROL_CHARACTER);
+
+    parse_object_invalid_helper(
         "{\"\\ud800\":null}",
         minijson::parse_error::EXPECTED_UTF16_LOW_SURROGATE);
 
@@ -2218,6 +2248,18 @@ TEST(minijson_reader, parse_array_invalid)
     parse_array_invalid_helper(
         "[\"\\ufff\"]",
         minijson::parse_error::INVALID_ESCAPE_SEQUENCE);
+
+    parse_array_invalid_helper(
+        "[\"foo\nfoo\"]",
+        minijson::parse_error::UNESCAPED_CONTROL_CHARACTER);
+
+    parse_array_invalid_helper(
+        "[\"foo\x01""foo\"]",
+        minijson::parse_error::UNESCAPED_CONTROL_CHARACTER);
+
+    parse_array_invalid_helper(
+        "[\"foo\x1F""foo\"]",
+        minijson::parse_error::UNESCAPED_CONTROL_CHARACTER);
 
     parse_array_invalid_helper(
         "[\"\\ud800\"]",

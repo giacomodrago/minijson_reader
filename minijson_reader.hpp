@@ -404,6 +404,7 @@ public:
         EXCEEDED_NESTING_LIMIT,
         NULL_UTF16_CHARACTER,
         EXPECTED_VALUE,
+        UNESCAPED_CONTROL_CHARACTER,
     };
 
     template<typename Context>
@@ -458,6 +459,8 @@ public:
             return "Null UTF-16 character";
         case EXPECTED_VALUE:
             return "Expected a value";
+        case UNESCAPED_CONTROL_CHARACTER:
+            return "Unescaped control character";
         }
 
         return ""; // to suppress compiler warnings -- LCOV_EXCL_LINE
@@ -511,6 +514,8 @@ inline std::ostream& operator<<(
         return out << "NULL_UTF16_CHARACTER";
     case parse_error::EXPECTED_VALUE:
         return out << "EXPECTED_VALUE";
+    case parse_error::UNESCAPED_CONTROL_CHARACTER:
+        return out << "UNESCAPED_CONTROL_CHARACTER";
     }
 
     return out << "UNKNOWN";
@@ -811,6 +816,12 @@ std::string_view parse_string(Context& context)
             else if (c == '"')
             {
                 state = CLOSED;
+            }
+            else if (c >= 0x1 && c <= 0x1F)
+            {
+                throw parse_error(
+                    context,
+                    parse_error::UNESCAPED_CONTROL_CHARACTER);
             }
             else
             {
