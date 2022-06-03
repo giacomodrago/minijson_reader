@@ -164,6 +164,7 @@ Simply passing an empty functor *does not achieve the same result*. `minijson::i
 - `EXPECTED_OPENING_QUOTE`
 - `EXPECTED_UTF16_LOW_SURROGATE`: [learn more](http://en.wikipedia.org/wiki/UTF-16#U.2B10000_to_U.2B10FFFF)
 - `INVALID_ESCAPE_SEQUENCE`
+- `UNESCAPED_CONTROL_CHARACTER`
 - `NULL_UTF16_CHARACTER`
 - `INVALID_UTF16_CHARACTER`
 - `INVALID_VALUE`
