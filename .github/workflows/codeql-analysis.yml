@@ -41,6 +41,7 @@ jobs:
 
     - name: Install dependencies and build
       run: |
+       sudo apt-get update
        sudo apt-get install -y g++-11 libgtest-dev
        cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Release
        cmake --build ${{github.workspace}}/build --config Release
