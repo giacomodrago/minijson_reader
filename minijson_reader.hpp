@@ -1014,6 +1014,24 @@ private:
     std::string_view m_raw_value = "null";
 }; // class value
 
+#ifdef __APPLE__
+inline double parse_double(const std::string_view& str) {
+    if (str.empty())  // we don't accept empty strings
+    {
+        throw bad_value_cast("value::as<T>(): value type is not double");
+    }
+
+    // we perform this check to reject hex numbers (supported in C++11) and string with leading spaces
+    for (const char c : str) {
+        if (!(isdigit(c) || (c == '+') || (c == '-') || (c == '.') || (c == 'e') || (c == 'E'))) {
+            throw bad_value_cast("value::as<T>(): value type is not double");
+        }
+    }
+
+    return std::stod(str.data());
+}
+#endif
+
 // Fallback behavior of value::as<T>() when no user-provided value_as
 // specialization for T exists.
 // This function is also meant to be called directly by the user in case they
@@ -1088,6 +1106,16 @@ T value_as_default(const value v)
             // However, we do a paranoia check for emptiness.
             return !raw.empty() && raw[0] == 't';
         }
+#ifdef __APPLE__
+        else if constexpr (std::is_same_v<T, float>)
+        {
+            return parse_double(raw);
+        }
+        else if constexpr (std::is_same_v<T, double>)
+        {
+            return parse_double(raw);
+        }
+#endif
         else if constexpr (std::is_arithmetic_v<T>)
         {
             if (v.type() != Number)
@@ -1099,7 +1127,7 @@ T value_as_default(const value v)
             T result {}; // value initialize to silence compiler warnings
             const auto begin = raw.data();
             const auto end = raw.data() + raw.size();
-            const auto [parse_end, error] = std::from_chars(begin, end, result);
+            const auto [parse_end, error]{std::from_chars(begin, end, result)};
             if (parse_end != end || error != std::errc())
             {
                 throw std::range_error(
